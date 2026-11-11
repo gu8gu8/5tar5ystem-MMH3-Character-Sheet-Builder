@@ -167,6 +167,22 @@ def test_the_groin_macro_is_a_single_tighter_adult_detail_crop():
     assert cells[0]["expression"] == "neutral"
 
 
+def test_the_nipple_side_is_an_adult_macro_profile_crop():
+    view = ss._VIEW_BY_KEY["nipple-side"]
+    prompt = view.prompt.lower()
+    assert ss.framing_distance("nipple-side") == ss.framing_distance("nipple") == "close"
+    assert ss.VIEW_VARIANTS["nipple-side"] == ss.VIEW_VARIANTS["nipple"] == "single"
+    assert "nipple-side" in ss.NO_FACE_FRAMINGS
+    assert "adult character" in prompt
+    assert "exactly 90 degrees at the side" in prompt
+    assert "side profile and projection" in prompt
+    assert "no face or other body parts" in prompt
+    assert ss.attributes_hidden_by("nipple-side") == ss.attributes_hidden_by("nipple")
+    cells = ss.cell_matrix(views=["nipple-side"], expressions=["neutral", "smile"])
+    assert len(cells) == 1
+    assert cells[0]["expression"] == "neutral"
+
+
 def test_the_panel_offers_every_view_and_the_same_camera_distances():
     """The panel keeps its own copies of the tick row and of ``FRAMING_DISTANCES``.
 
@@ -194,7 +210,7 @@ def test_the_detail_crops_get_a_single_cell():
     The eyes close-up is the deliberate exception: an expression IS what an eye shot is
     about (closed lids, a wink, heavy lids), so it takes the expression axis like the face.
     """
-    for key in ("hands", "legs", "head-back", "nipple", "groin-macro"):
+    for key in ("hands", "legs", "head-back", "nipple", "nipple-side", "groin-macro"):
         assert ss.VIEW_VARIANTS[key] == "single", key
     nipple = ss._VIEW_BY_KEY["nipple"]
     assert "macro close-up" in nipple.prompt

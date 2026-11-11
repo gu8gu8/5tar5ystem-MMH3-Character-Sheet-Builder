@@ -667,6 +667,28 @@ def test_nipple_cell_keeps_every_imported_picture_number():
     assert "<Picture 8> is the body shape reference." in prompt
 
 
+def test_nipple_side_cell_keeps_every_imported_picture_number():
+    spec = ss.parse_sheet_spec(
+        {
+            "refs": {
+                "pictures": [
+                    {"imageFile": "face.jpg", "role": "face"},
+                    {"imageFile": "body.jpg", "role": "body shape"},
+                    {"imageFile": "nipple.jpg", "role": "nipple"},
+                ]
+            },
+            "cells": [{"id": "nipple-side", "view": "nipple-side"}],
+        }
+    )
+    cell = spec.enabled_cells[0]
+    refs = ss.cell_references(spec, cell)
+    prompt = ss.build_cell_prompt(spec, cell, refs=refs)
+
+    assert [ref.file for ref in refs] == [ref.file for ref in spec.pictures]
+    assert [ref.tag for ref in refs] == ["<Picture 1>", "<Picture 2>", "<Picture 3>"]
+    assert "<Picture 3> is the sole source of the breasts." in prompt
+
+
 def test_prompt_override_round_trips_and_replaces_the_generated_prompt():
     override = "Use <Picture 2> for the detail. Keep the crop tight."
     spec = ss.parse_sheet_spec(

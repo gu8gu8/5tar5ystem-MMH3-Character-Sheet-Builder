@@ -304,6 +304,15 @@ VIEWS: tuple[SheetOption, ...] = (
         "or other body parts in shot.",
     ),
     SheetOption(
+        "nipple-side",
+        "Nipple side (macro close up)",
+        "Extreme macro close-up of one nipple and areola on an adult character, viewed "
+        "from exactly 90 degrees at the side. The nipple's side profile and projection "
+        "from the surrounding skin are clearly visible; do not turn it toward the camera. "
+        "Surrounding skin in sharp focus, neutral clinical lighting, no face or other body "
+        "parts in shot.",
+    ),
+    SheetOption(
         "groin",
         "Groin (close up)",
         "Framed on the groin and the top of the thighs: the genital area inside the "
@@ -354,6 +363,7 @@ FRAMING_DISTANCES: dict[str, str] = {
     "breasts": "close",
     "breasts-side": "close",
     "nipple": "close",
+    "nipple-side": "close",
     "groin": "close",
     "groin-macro": "close",
     "butt": "close",
@@ -394,7 +404,7 @@ PROFILE_FRAMINGS: tuple[str, ...] = ("profile", "portrait-profile", "face-profil
 #: deliberately NOT here - it is the framing an expression is READ from.
 NO_FACE_FRAMINGS: tuple[str, ...] = (
     "back", "three-quarter-back", "head-back", "hands", "legs",
-    "feet", "breasts", "breasts-side", "nipple", "groin", "groin-macro", "butt",
+    "feet", "breasts", "breasts-side", "nipple", "nipple-side", "groin", "groin-macro", "butt",
 )
 
 #: The framings whose own frame text says the subject is NOT looking at the viewer (a
@@ -451,6 +461,7 @@ VIEW_VARIANTS: dict[str, str] = {
     "breasts": "single",
     "breasts-side": "single",
     "nipple": "single",
+    "nipple-side": "single",
     "groin": "single",
     "groin-macro": "single",
     "butt": "single",
@@ -2109,6 +2120,7 @@ ATTRIBUTES_HIDDEN_BY_VIEW: dict[str, tuple[str, ...]] = {
     "breasts": ("face", "eyes", "glasses", "body", "legwear", "shoes"),
     "breasts-side": ("face", "eyes", "glasses", "body", "legwear", "shoes"),
     "nipple": ("face", "eyes", "glasses", "hair", "body", "legwear", "shoes"),
+    "nipple-side": ("face", "eyes", "glasses", "hair", "body", "legwear", "shoes"),
     "groin": ("face", "eyes", "glasses", "hair", "shoes"),
     "groin-macro": ("face", "eyes", "glasses", "hair", "shoes"),
     "butt": ("face", "eyes", "glasses", "shoes"),
@@ -2466,8 +2478,9 @@ def cell_references(
     hidden by this framing - an outfit for a face close-up - is left out of the wiring
     instead of being argued with, and the prompt names only what is wired.
 
-    The nipple macro is the exception: it receives every enabled reference in original order
-    so its prompt tags continue to identify the same imported images as the reference panel.
+    The nipple macros are the exception: they receive every enabled reference in original
+    order so their prompt tags continue to identify the same imported images as the reference
+    panel.
 
     A reference that claims nothing stays: its purpose is unknown, so dropping it would
     be a silent change. If the filter would drop everything, the first enabled
@@ -2475,11 +2488,11 @@ def cell_references(
     turns the filter off and hands every enabled reference to every cell.
 
     A cell that names its own face reference (``cell.face_ref``, the panel's drag-and-drop)
-    gives it the face attribute. In filtered views it moves first; in the nipple macro it
+    gives it the face attribute. In filtered views it moves first; in the nipple macros it
     keeps its import-order tag. See :func:`cell_face_reference`.
     """
     enabled = [ref for ref in spec.refs if ref.enabled]
-    if cell.view == "nipple":
+    if cell.view in ("nipple", "nipple-side"):
         # A macro reference needs the full import-order picture list: omitting hidden
         # slots here would make H3's Picture tags point at different images.
         face = cell_face_reference(cell, enabled)
