@@ -1351,6 +1351,7 @@ export const GLYPH_SPRITE = `
 <symbol id="mk-feet" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M11 9v9c0 5 1 7 4 7 2 0 3-2 3-6V9c0-3-7-3-7 0Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M21 11v7c0 4 .8 5.5 2.4 5.5 1.3 0 2-1.6 2-4.6V11c0-2.4-4.4-2.4-4.4 0Z" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
 <symbol id="mk-legs" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M12 8h8l-1.4 16h-2.2L16 15l-.4 9h-2.2Z" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
 <symbol id="mk-torso" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M11 12c0-4 2.2-6 5-6s5 2 5 6v7c0 3-2 4-5 4s-5-1-5-4Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M13 16h6" stroke="currentColor" stroke-width="1"/></symbol>
+<symbol id="mk-nipple" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><circle cx="16" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="16" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M16 11.5v-2m0 13v-2m-4.5-4.5h-2m13 0h-2" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
 <symbol id="mk-lower" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M10 10c0 6 1.5 12 6 12s6-6 6-12" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M13 12v8M19 12v8" stroke="currentColor" stroke-width="1"/></symbol>
 <symbol id="mk-rear" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><circle cx="12.5" cy="16" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="21" cy="16" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
 <symbol id="ex-neutral" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><circle cx="16" cy="16" r="8.4" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="13" cy="14.5" r="1" fill="currentColor"/><circle cx="19" cy="14.5" r="1" fill="currentColor"/><path d="M13.6 20h4.8" stroke="currentColor" stroke-width="1.1"/></symbol>
@@ -1385,6 +1386,7 @@ export const VIEW_MARKS = {
     mouth: "mk-mouth",
     feet: "mk-feet",
     breasts: "mk-torso",
+    nipple: "mk-nipple",
     groin: "mk-lower",
     butt: "mk-rear",
 };

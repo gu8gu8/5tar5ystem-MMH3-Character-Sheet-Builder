@@ -1540,6 +1540,7 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     assert.equal(new Set(views).size, views.length, "a framing is in the row twice");
     const unmarked = views.filter((key) => !core.VIEW_MARKS[key]);
     assert.deepEqual(unmarked, [], `framings with no mark: ${unmarked}`);
+    assert.equal(core.VIEW_MARKS.nipple, "mk-nipple", "the macro crop has its own mark");
     const undrawn = [...new Set(views.map((key) => core.VIEW_MARKS[key]))]
         .filter((id) => !core.GLYPH_SPRITE.includes(`<symbol id="${id}" `));
     assert.deepEqual(undrawn, [], `marks with no drawing: ${undrawn}`);
