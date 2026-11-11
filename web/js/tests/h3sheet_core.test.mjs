@@ -1530,6 +1530,48 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     ok.push("a pane's layout lives on its is-active rule (the LoRA stack cannot leak to other tabs)");
 }
 
+// --- per-cell prompt edits persist and can be reset -------------------------------------------
+{
+    const promptState = core.readState(JSON.stringify({
+        cells: [{ id: "front", view: "front" }],
+    }));
+    const savedPrompts = [];
+    const promptPanel = core.buildSheetInterface({
+        state: promptState,
+        hooks: {
+            stateChanged: (payload) => savedPrompts.push(payload),
+            status: () => {},
+            planCells: async () => ({
+                cells: [{
+                    id: "front",
+                    prompt: promptState.cells[0].promptOverride || "generated prompt",
+                    refs: [],
+                }],
+            }),
+        },
+    });
+    await tick();
+    promptPanel.showTab("prompts");
+    await tick();
+    const editor = promptPanel.container.querySelector(".mmx-prompt__editor");
+    assert.ok(editor, "the prompt preview is an editable field");
+    assert.equal(editor.value, "generated prompt");
+    editor.value = "My corrected prompt";
+    editor.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    assert.equal(promptState.cells[0].promptOverride, "My corrected prompt");
+    assert.equal(savedPrompts.at(-1).cells[0].promptOverride, "My corrected prompt",
+        "the edit is persisted with the workflow");
+    click([...promptPanel.container.querySelectorAll("button")]
+        .find((button) => button.textContent === "Reset to generated"));
+    await tick();
+    assert.equal(promptState.cells[0].promptOverride, undefined,
+        "reset removes the saved override");
+    assert.equal(promptPanel.container.querySelector(".mmx-prompt__editor").value, "generated prompt",
+        "the generated prompt is restored");
+    promptPanel.dispose();
+    ok.push("per-cell prompt edits persist with the workflow and reset to their generated text");
+}
+
 // --- every framing has a mark, and every mark is drawn ---------------------------------------
 // A framing a user cannot see is a framing they cannot tick: adding a view is two edits (the row
 // entry and its symbol), and forgetting the second leaves an empty square that reads as a glitch -

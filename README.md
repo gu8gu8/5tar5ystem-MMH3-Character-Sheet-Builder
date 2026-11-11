@@ -38,9 +38,10 @@ hands on hips...) and 20 expressions - including arousal / pleasure / orgasm, wr
 states. Tick what you want, press *Build cells*, and every cell prompt is generated from the
 vocabulary (framing, pose, expression, what that framing cannot show).
 
-**Prompts you can read before you render.** The Prompt tab shows the exact per-cell text -
-identity, the reference legend with each role, framing, pose, expression, your own extra words and
-the suppression list - straight from the pack's planner: no GPU, no queueing, no guessing.
+**Prompts you can edit before you render.** The Prompt tab shows and lets you edit each cell's
+prompt; edits are saved with the workflow, used as-is in per-cell mode, and can be reset to the
+generated text. One-pass mode still uses its combined sheet prompt. The nipple close-up keeps all
+enabled pictures in import order so `<Picture N>` continues to name the same image.
 
 **Face blur for non-identity references.** Auto (blurs a reference whose role does not mention the
 face) / on / off per tile, three scopes (face, face + hair, whole head) and hand-painted areas for

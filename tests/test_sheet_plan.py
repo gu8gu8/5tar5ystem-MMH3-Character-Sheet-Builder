@@ -77,6 +77,19 @@ def test_plan_action_returns_each_cells_prompt_and_its_references():
     assert "must not supply a face, a hairstyle, hair colour, hair length, skin tone or facial features" in whole["prompt"]
 
 
+def test_plan_action_uses_a_saved_per_cell_prompt_override():
+    override = "Use <Picture 1> as the source. Keep the shot close."
+    payload = {
+        "refs": {"pictures": [{"imageFile": "face.jpg", "role": "face and hair"}]},
+        "cells": [{"id": "close", "view": "face", "promptOverride": override}],
+    }
+
+    answer = _call({"action": "plan", "spec": payload})
+
+    assert answer["ok"] is True
+    assert answer["cells"][0]["prompt"] == override
+
+
 def test_plan_reports_which_references_will_be_blurred():
     """The preview says which tags arrive with the face already blurred out.
 

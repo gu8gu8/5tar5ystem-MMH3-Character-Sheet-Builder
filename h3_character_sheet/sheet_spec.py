@@ -906,6 +906,8 @@ class SheetCell:
     #: Latent continuation for this cell: ``inherit`` (the render setting), ``on`` or
     #: ``off``. The first cell of a sheet never continues - there is nothing before it.
     continuity: str = DEFAULT_CELL_CONTINUITY
+    #: An optional full prompt replacing the generated text for this cell in per-cell mode.
+    prompt_override: str = ""
 
     @property
     def view_option(self) -> SheetOption:
@@ -1161,6 +1163,7 @@ class SheetSpec:
                     "pose": c.pose,
                     "expression": c.expression,
                     "extraPrompt": c.extra_prompt,
+                    **({"promptOverride": c.prompt_override} if c.prompt_override else {}),
                     "caption": c.caption,
                     "frames": c.frames,
                     "seed": c.seed,
@@ -1665,6 +1668,9 @@ def _parse_cells(raw: Any, render: SheetRenderSpec, warnings: list[str]) -> list
                 pose=pose,
                 expression=expression,
                 extra_prompt=str(item.get("extraPrompt") or item.get("extra_prompt") or "").strip(),
+                prompt_override=str(
+                    item.get("promptOverride", item.get("prompt_override")) or ""
+                ),
                 caption=str(item.get("caption") or "").strip()[:120],
                 frames=cell_frames,
                 seed=_as_int(item.get("seed"), 0),
@@ -2415,7 +2421,7 @@ def cell_references(
     *,
     scope: str = DEFAULT_REF_SCOPE,
 ) -> list[SheetRef]:
-    """The references THIS cell should receive, renumbered 1..n per kind.
+    """The references THIS cell should receive.
 
     H3 conditions on every reference it is handed at once, and it has no per-reference
     weight: a prompt can *ask* for the face to come from ``<Picture 1>``, but it cannot
@@ -2423,16 +2429,34 @@ def cell_references(
     hidden by this framing - an outfit for a face close-up - is left out of the wiring
     instead of being argued with, and the prompt names only what is wired.
 
+    The nipple macro is the exception: it receives every enabled reference in original order
+    so its prompt tags continue to identify the same imported images as the reference panel.
+
     A reference that claims nothing stays: its purpose is unknown, so dropping it would
     be a silent change. If the filter would drop everything, the first enabled
     reference is kept so the person is still conditioned. ``scope="every cell"``
     turns the filter off and hands every enabled reference to every cell.
 
     A cell that names its own face reference (``cell.face_ref``, the panel's drag-and-drop)
-    puts that reference first and gives it the face attribute, so the panel's prompt points
-    at it. See :func:`cell_face_reference`.
+    gives it the face attribute. In filtered views it moves first; in the nipple macro it
+    keeps its import-order tag. See :func:`cell_face_reference`.
     """
     enabled = [ref for ref in spec.refs if ref.enabled]
+    if cell.view == "nipple":
+        # A macro reference needs the full import-order picture list: omitting hidden
+        # slots here would make H3's Picture tags point at different images.
+        face = cell_face_reference(cell, enabled)
+        if face is not None:
+            role = str(face.role or "").strip()
+            if "face" not in reference_attributes(role):
+                role = f"{role}, face".strip(" ,") if role else "face"
+            face = replace(face, role=role)
+            enabled = [
+                face if ref.kind == face.kind and ref.source == face.source else ref
+                for ref in enabled
+            ]
+        return enabled
+
     if str(scope or "").strip().lower() == "every cell":
         return enabled
     hidden = set(attributes_hidden_by(cell.view))
@@ -3054,6 +3078,9 @@ def build_cell_prompt(spec: SheetSpec, cell: SheetCell, *, refs: list[SheetRef] 
     spelled out so the official tag parser matches them. ``refs`` is the subset this
     cell receives (see :func:`cell_references`).
     """
+    if cell.prompt_override.strip():
+        return cell.prompt_override
+
     lines: list[str] = []
     if spec.global_prompt.strip():
         lines.append(spec.global_prompt.strip())

@@ -636,6 +636,52 @@ def test_the_framing_filter_drops_an_anatomy_reference_it_cannot_show():
     assert "intimate anatomy" not in portrait
 
 
+def test_nipple_cell_keeps_every_imported_picture_number():
+    spec = ss.parse_sheet_spec(
+        {
+            "refs": {
+                "pictures": [
+                    {"imageFile": "face.jpg", "role": "face"},
+                    {"imageFile": "side.jpg", "role": "face side, hair"},
+                    {"imageFile": "buttocks.jpg", "role": "buttocks"},
+                    {"imageFile": "breasts.jpg", "role": "breasts"},
+                    {"imageFile": "breast-shape.jpg", "role": "breasts"},
+                    {"imageFile": "nipple.jpg", "role": "nipple"},
+                    {"imageFile": "intimate.jpg", "role": "intimate anatomy"},
+                    {"imageFile": "body.jpg", "role": "body shape"},
+                ]
+            },
+            "cells": [{"id": "nipple", "view": "nipple"}],
+        }
+    )
+    cell = spec.enabled_cells[0]
+    refs = ss.cell_references(spec, cell)
+    prompt = ss.build_cell_prompt(spec, cell, refs=refs)
+    from h3cs import planner as pl
+    wired = pl.cell_work_items(spec)[0]["ref_plan"]["pictures"]
+
+    assert [ref.file for ref in refs] == [ref.file for ref in spec.pictures]
+    assert [ref.tag for ref in refs] == [f"<Picture {number}>" for number in range(1, 9)]
+    assert [item["file"] for item in wired] == [ref.file for ref in spec.pictures]
+    assert "<Picture 6> is the nipple reference." in prompt
+    assert "<Picture 8> is the body shape reference." in prompt
+
+
+def test_prompt_override_round_trips_and_replaces_the_generated_prompt():
+    override = "Use <Picture 2> for the detail. Keep the crop tight."
+    spec = ss.parse_sheet_spec(
+        {
+            "refs": {"pictures": [{"imageFile": "one.jpg"}, {"imageFile": "two.jpg"}]},
+            "cells": [{"id": "c", "view": "front", "promptOverride": override}],
+        }
+    )
+
+    assert ss.build_cell_prompt(spec, spec.cells[0]) == override
+    restored = ss.parse_sheet_spec(spec.to_dict())
+    assert restored.cells[0].prompt_override == override
+    assert ss.build_cell_prompt(restored, restored.cells[0]) == override
+
+
 def test_a_cell_only_gets_the_references_its_framing_can_show():
     """The reported bug: a face close-up rendered the OTHER picture's face.
 

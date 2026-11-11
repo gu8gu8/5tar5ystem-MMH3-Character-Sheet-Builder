@@ -2086,6 +2086,7 @@ button.mmx-badge:hover { border-color: var(--mmx-tick); }
   background: rgba(0,0,0,.14); color: var(--mmx-fg); font-size: 10px; line-height: 1.35;
   white-space: pre-wrap; word-break: break-word;
 }
+.mmx-prompt__editor { width: 100%; min-height: 150px; margin-top: 3px; resize: vertical; font: 10px/1.35 monospace; }
 .mmx-results img { border-radius: 4px; }
 /* The live stream: the one thing on screen between "queued" and the finished sheet. It sits
    above the tabs so it is visible whichever tab is open, and it is only as tall as one frame. */
@@ -7235,7 +7236,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
         const head = element("div", { className: "mmx-row" }, { marginBottom: "4px" });
         head.append(
             element("span", {
-                textContent: `Final prompt per cell - exactly what the render sends (${planCells.length} cell(s)).`,
+                textContent: `Editable per-cell prompt (${planCells.length} cell(s)); used in per-cell mode, not the combined one-pass prompt.`,
                 className: "mmx-muted",
             }),
             element("span", { className: "mmx-spacer" }),
@@ -7259,7 +7260,28 @@ export function buildSheetInterface({ state, hooks = {} }) {
                 textContent: `${index + 1}. ${cell.id} · references: ${(cell.refs || []).join(", ") || "none"}${blurredMarks}${marks}`,
                 className: "mmx-muted",
             }));
-            block.append(element("pre", { textContent: cell.prompt || "" }));
+            const editor = element("textarea", {
+                className: "mmx-input mmx-prompt__editor",
+                value: cell.prompt || "",
+                rows: 10,
+            });
+            editor.setAttribute("aria-label", `Prompt for ${cell.id}`);
+            editor.addEventListener("input", () => {
+                const target = state.cells.find((entry) => entry.id === cell.id);
+                if (!target) return;
+                target.promptOverride = editor.value;
+                persist();
+            });
+            const reset = button("Reset to generated", () => {
+                const target = state.cells.find((entry) => entry.id === cell.id);
+                if (!target) return;
+                delete target.promptOverride;
+                persist();
+                refreshPlan();
+            });
+            reset.disabled = !state.cells.find((entry) => entry.id === cell.id)?.promptOverride;
+            reset.title = "Discard this edit and restore the generated prompt";
+            block.append(editor, reset);
             promptsHost.append(block);
         }
         hooks.layoutChanged?.();
