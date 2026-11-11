@@ -279,6 +279,13 @@ VIEWS: tuple[SheetOption, ...] = (
         "visible, nipples in shot, the collarbone above the frame. No face in shot.",
     ),
     SheetOption(
+        "nipple",
+        "Nipple (macro close up)",
+        "Extreme macro close-up of one nipple and areola on an adult character, centred "
+        "with the surrounding skin in sharp focus and neutral clinical lighting. No face "
+        "or other body parts in shot.",
+    ),
+    SheetOption(
         "groin",
         "Groin (close up)",
         "Framed on the groin and the top of the thighs: the genital area inside the "
@@ -320,6 +327,7 @@ FRAMING_DISTANCES: dict[str, str] = {
     "mouth": "close",
     "feet": "close",
     "breasts": "close",
+    "nipple": "close",
     "groin": "close",
     "butt": "close",
     "portrait": "medium",
@@ -357,7 +365,7 @@ PROFILE_FRAMINGS: tuple[str, ...] = ("profile", "face-profile")
 #: deliberately NOT here - it is the framing an expression is READ from.
 NO_FACE_FRAMINGS: tuple[str, ...] = (
     "back", "three-quarter-back", "head-back", "hands", "legs",
-    "feet", "breasts", "groin", "butt",
+    "feet", "breasts", "nipple", "groin", "butt",
 )
 
 #: The framings whose own frame text says the subject is NOT looking at the viewer (a
@@ -411,6 +419,7 @@ VIEW_VARIANTS: dict[str, str] = {
     "mouth": "expression",
     "feet": "single",
     "breasts": "single",
+    "nipple": "single",
     "groin": "single",
     "butt": "single",
 }
@@ -2060,6 +2069,7 @@ ATTRIBUTES_HIDDEN_BY_VIEW: dict[str, tuple[str, ...]] = {
     # The body crops: no face in any of them, and what the framing cannot contain is
     # dropped so a reference's claim about it does not get argued with.
     "breasts": ("face", "eyes", "glasses", "body", "legwear", "shoes"),
+    "nipple": ("face", "eyes", "glasses", "hair", "body", "legwear", "shoes"),
     "groin": ("face", "eyes", "glasses", "hair", "shoes"),
     "butt": ("face", "eyes", "glasses", "shoes"),
     "portrait": ("intimate", "legwear", "shoes"),

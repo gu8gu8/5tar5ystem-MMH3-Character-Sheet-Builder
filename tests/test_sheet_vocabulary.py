@@ -145,17 +145,23 @@ def test_the_detail_crops_get_a_single_cell():
     The eyes close-up is the deliberate exception: an expression IS what an eye shot is
     about (closed lids, a wink, heavy lids), so it takes the expression axis like the face.
     """
-    for key in ("hands", "legs", "head-back"):
+    for key in ("hands", "legs", "head-back", "nipple"):
         assert ss.VIEW_VARIANTS[key] == "single", key
+    nipple = ss._VIEW_BY_KEY["nipple"]
+    assert "macro close-up" in nipple.prompt
+    assert "one nipple and areola" in nipple.prompt
+    assert ss.framing_distance("nipple") == "close"
+    assert "nipple" in ss.NO_FACE_FRAMINGS
     assert ss.VIEW_VARIANTS["eyes"] == "expression"
 
     cells = ss.cell_matrix(
-        views=["hands", "front"],
+        views=["hands", "nipple", "front"],
         poses=["neutral", "sitting"],
         expressions=["neutral", "orgasm"],
     )
     assert [cell["id"] for cell in cells] == [
         "hands-neutral-neutral",
+        "nipple-neutral-neutral",
         "front-neutral-neutral",
         "front-sitting-neutral",
     ], "the crop contributes one cell, the full body one per pose"
@@ -169,6 +175,8 @@ def test_the_detail_crops_hide_what_they_cannot_show():
     assert "clothing" not in ss.attributes_hidden_by("hands"), "sleeves are in a hand shot"
     assert "glasses" not in ss.attributes_hidden_by("eyes"), "glasses are IN an eye close-up"
     assert "face" in ss.attributes_hidden_by("legs")
+    assert "hair" in ss.attributes_hidden_by("nipple")
+    assert "breasts" not in ss.attributes_hidden_by("nipple"), "the nipple reference must remain available"
 
 
 # --------------------------------------------------------------------------- #
@@ -194,7 +202,7 @@ def test_a_body_framing_still_carries_an_expression():
 
 def test_a_framing_with_no_face_in_it_never_gets_an_expression():
     """"Smiling" in a hands crop only invents a face at the edge of the frame."""
-    for view in ("hands", "legs", "head-back"):
+    for view in ("hands", "legs", "head-back", "nipple"):
         spec, cell = _cell(view, expression="orgasm")
         prompt = ss.build_cell_prompt(spec, cell)
         assert "gasp" not in prompt, f"{view} should not carry an expression"

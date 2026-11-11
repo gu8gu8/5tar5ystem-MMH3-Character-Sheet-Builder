@@ -32,7 +32,7 @@ each one gets a free-text role - "face and hair", "body and clothes", "this voic
 is what the prompt says, and the render wires exactly the references a cell can use, so one picture
 can carry identity while another carries the outfit.
 
-**A matrix of cells.** 15 views (face close-up, portrait, front, 90 deg profile, back, 45 deg
+**A matrix of cells.** 23 views (face close-up, portrait, front, 90 deg profile, back, 45 deg
 views, over-shoulder, hands, legs...), 13 poses (neutral, A/T-pose, sitting, kneeling, walking,
 hands on hips...) and 20 expressions - including arousal / pleasure / orgasm, written as face
 states. Tick what you want, press *Build cells*, and every cell prompt is generated from the
@@ -1380,6 +1380,7 @@ crops a sheet is actually used for - and the two **Closeups 2x2** layouts build 
 | Mouth (close up) | Lips, teeth if they show, and the chin inside the frame - the framing an expression is read from. The eyes are out of shot. | Closeups 2x2 (SFW + NSFW) |
 | Feet (close up) | From the ankle down: footwear, toes and ankles, feet together on the ground. No legs above the ankle. | Closeups 2x2 (SFW) |
 | Breasts (close up) | Framed on the chest, both fully visible, collarbone above the frame. No face. | Closeups 2x2 (NSFW) |
+| Nipple (macro close up) | One nipple and areola in an extreme macro crop, with surrounding skin in focus. No face or other body parts. | Individual cell |
 | Groin (close up) | Framed on the groin and the top of the thighs, legs slightly apart. No face. | Closeups 2x2 (NSFW) |
 | Butt (close up, from behind) | Both cheeks from directly behind at hip height. No face. | Closeups 2x2 (NSFW) |
 

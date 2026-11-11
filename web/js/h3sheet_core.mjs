@@ -45,6 +45,7 @@ export const VIEWS = [
     ["mouth", "Mouth"],
     ["feet", "Feet"],
     ["breasts", "Breasts"],
+    ["nipple", "Nipple macro"],
     ["groin", "Groin"],
     ["butt", "Butt"],
 ];
@@ -355,6 +356,7 @@ export const FRAMING_DISTANCES = {
     mouth: "close",
     feet: "close",
     breasts: "close",
+    nipple: "close",
     groin: "close",
     butt: "close",
     portrait: "medium",
