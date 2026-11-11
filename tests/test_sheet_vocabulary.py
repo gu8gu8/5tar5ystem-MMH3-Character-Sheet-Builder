@@ -181,8 +181,12 @@ def test_the_nipple_side_is_an_adult_macro_profile_crop():
     assert "nipple-side" in ss.NO_FACE_FRAMINGS
     assert "adult character" in prompt
     assert "exactly 90 degrees at the side" in prompt
-    assert "side profile and projection" in prompt
-    assert "no face or other body parts" in prompt
+    assert "extreme macro photograph" in prompt
+    assert "filling almost the entire frame" in prompt
+    assert "only the nipple, its immediate areola and a tiny margin" in prompt
+    assert "showing the nipple's profile and projection" in prompt
+    assert "the nipple is the only subject" in prompt
+    assert "no breast, chest, torso, head, face or other body parts in frame" in prompt
     assert ss.attributes_hidden_by("nipple-side") == ss.attributes_hidden_by("nipple")
     cells = ss.cell_matrix(views=["nipple-side"], expressions=["neutral", "smile"])
     assert len(cells) == 1
