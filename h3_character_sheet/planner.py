@@ -100,9 +100,10 @@ def cell_work_items(
     """One work item per enabled cell, in sheet order (cell 0 is the hero).
 
     ``cell_size`` is the cell's SHORT edge; each cell's own ``aspect`` (else the
-    sheet's ``render.cell_aspect``) decides the long edge. Each item carries the
-    references that cell will actually receive (see ``sheet_spec.cell_references``),
-    so the prompt and the wiring always describe the same pictures.
+    sheet's ``render.cell_aspect``) decides the long edge. Each item carries every
+    enabled picture in stable source order, plus the non-picture references selected
+    for that cell (see ``sheet_spec.cell_references``), so the prompt and wiring use
+    the same tags.
 
     ``continuity`` is how many frames of the previous cell this one continues from
     (``0`` = independent; see ``sheet_spec.continuity_plan``). It is computed here, once
@@ -156,10 +157,10 @@ def reference_plan(
     prefix (9 images, 3 videos, 3 video soundtracks, 3 audios); a reference video's
     soundtrack is the same index, exactly how the official node pairs them.
 
-    ``refs`` is the subset one cell receives (``sheet_spec.cell_references``): the
-    slots are numbered from that subset, because H3 numbers the references it is
-    handed. ``source_slot_id`` names the loader node built for the run's FULL set, so
-    the graph builder can wire the same image under the cell's own numbering.
+    ``refs`` is the references one cell receives (``sheet_spec.cell_references``).
+    Picture slots are complete and source-ordered, so their H3 numbers are identical
+    across cells; filtered video/audio slots are numbered from the subset. ``source_slot_id``
+    names the loader node built for the run's FULL set.
     """
     source = list(refs) if refs is not None else [r for r in spec.refs if r.enabled]
     plan: dict[str, list[dict[str, Any]]] = {"pictures": [], "videos": [], "audios": []}
@@ -238,8 +239,8 @@ def work_summary(spec: SheetSpec, items: list[dict[str, Any]]) -> list[str]:
         f"References: {len(refs['pictures'])} picture(s), "
         f"{len(refs['videos'])} video(s), {len(refs['audios'])} audio(s)."
     )
-    # A framing can leave out a reference it cannot show (an outfit photo on a
-    # close-up); say so, because that is what keeps the other face out of the shot.
+    # A framing can still leave out a non-picture reference; picture identifiers stay
+    # present and stable in every cell.
     for item in items:
         tags = plan_tags(item.get("ref_plan") or {})
         if tags and len(tags) != len(full):

@@ -876,8 +876,8 @@ def test_a_panel_can_take_its_face_from_a_reference_the_rule_would_blur():
     assert ss.cell_face_slots(spec) == {("picture", 1)}
 
 
-def test_the_panel_that_names_a_face_reference_leads_with_it():
-    """The cell's prompt hands it to H3 as <Picture 1> and gives it the face attribute."""
+def test_the_panel_face_reference_keeps_its_picture_number_and_gains_the_face_role():
+    """Choosing a face tile never reorders the stable picture list."""
     spec = ss.parse_sheet_spec(
         {
             "refs": {"pictures": [
@@ -894,11 +894,11 @@ def test_the_panel_that_names_a_face_reference_leads_with_it():
     plain = ss.cell_references(spec, by_id["c0"])
     assert [ref.file for ref in plain] == ["identity.jpg", "outfit.jpg"], "the default order"
     own = ss.cell_references(spec, by_id["c1"])
-    assert [ref.file for ref in own] == ["outfit.jpg", "identity.jpg"], (
-        "the panel's own face reference leads, so it is the one <Picture 1> names"
+    assert [ref.file for ref in own] == ["identity.jpg", "outfit.jpg"], (
+        "the panel's face choice does not reorder the stable picture list"
     )
-    assert "face" in own[0].role, "and it claims the face the prompt will point at"
-    assert ss.identity_reference(own) is own[0], "so the identity lines name that picture"
+    assert "face" in own[1].role, "the selected picture claims the face"
+    assert ss.identity_reference(own) is own[1], "the identity lines name the selected picture"
 
 
 def test_a_panel_face_reference_that_no_longer_exists_falls_back():

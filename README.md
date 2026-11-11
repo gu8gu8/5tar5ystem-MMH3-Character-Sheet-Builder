@@ -29,8 +29,9 @@ frame picker and the compositor.
 
 **References with roles.** Drop up to 9 pictures, 3 videos (with their soundtracks) and 3 audios;
 each one gets a free-text role - "face and hair", "body and clothes", "this voice". The role text
-is what the prompt says, and the render wires exactly the references a cell can use, so one picture
-can carry identity while another carries the outfit.
+is what the prompt says. Every enabled picture is listed in every generated cell prompt and wired
+to every cell in its original order, so `<Picture N>` always identifies the same image. The `per framing` reference scope filters videos whose role is hidden by the view; `every cell`
+sends them to every cell too.
 
 **A matrix of cells.** 27 views (face close-up, straight-on and side portraits, front, 90 deg
 profile, back, 45 deg views, over-shoulder, hands, legs...), 13 poses (neutral, A/T-pose, sitting, kneeling, walking,
@@ -40,8 +41,7 @@ vocabulary (framing, pose, expression, what that framing cannot show).
 
 **Prompts you can edit before you render.** The Prompt tab shows and lets you edit each cell's
 prompt; edits are saved with the workflow, used as-is in per-cell mode, and can be reset to the
-generated text. One-pass mode still uses its combined sheet prompt. The nipple close-up keeps all
-enabled pictures in import order so `<Picture N>` continues to name the same image.
+generated text. One-pass mode still uses its combined sheet prompt.
 
 **Face blur for non-identity references.** Auto (blurs a reference whose role does not mention the
 face) / on / off per tile, three scopes (face, face + hair, whole head) and hand-painted areas for

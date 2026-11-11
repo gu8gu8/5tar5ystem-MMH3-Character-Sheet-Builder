@@ -879,14 +879,15 @@ class SheetRef:
     role: str = ""
     enabled: bool = True
     index: int = 0
-    #: Position in the run's FULL reference set. A cell may receive a subset of the
-    #: references (see :func:`cell_references`), so ``index`` is re-numbered per cell
-    #: while ``source`` still points at the image actually wired for it.
+    #: Position in the run's enabled reference set. Picture indices stay fixed across
+    #: cells; ``source`` still points at the loader in the full reference set.
     source: int = -1
     #: Face blur for this reference: ``"auto"`` (see :func:`blur_face_decisions`),
     #: ``"on"`` or ``"off"``. The panel writes it; the node blurs the file before it
     #: is wired, so the model never sees the face of a non-identity reference.
     blur_face: str = DEFAULT_BLUR_MODE
+    #: A per-cell identity choice. It never changes this reference's tag index.
+    preferred_identity: bool = False
     #: Areas painted by hand, as normalized strokes (see :func:`parse_blur_paint`). A
     #: painted area is blurred *in addition to* anything the mode blurs - with the mode
     #: at ``"off"`` the painting is the only thing that gets blurred.
@@ -2287,6 +2288,9 @@ def identity_reference(refs: Iterable[SheetRef]) -> SheetRef | None:
     blur would take the face out of the very reference the prompt points at.
     """
     candidates = [ref for ref in refs if ref.kind in ("picture", "video")]
+    preferred = next((ref for ref in candidates if ref.preferred_identity), None)
+    if preferred is not None:
+        return preferred
     for attribute in ("face", "hair"):
         for ref in candidates:
             if attribute in reference_attributes(ref.role):
@@ -2472,73 +2476,63 @@ def cell_references(
 ) -> list[SheetRef]:
     """The references THIS cell should receive.
 
-    H3 conditions on every reference it is handed at once, and it has no per-reference
-    weight: a prompt can *ask* for the face to come from ``<Picture 1>``, but it cannot
-    stop the model taking it from the outfit photo. So a reference whose whole role is
-    hidden by this framing - an outfit for a face close-up - is left out of the wiring
-    instead of being argued with, and the prompt names only what is wired.
-
-    The nipple macros are the exception: they receive every enabled reference in original
-    order so their prompt tags continue to identify the same imported images as the reference
-    panel.
+    Every enabled picture is wired to every cell, in source order. H3 numbers only the
+    pictures it receives, so filtering or moving one would make ``<Picture N>`` name a
+    different image in different cells. The stable list is also spelled out in every
+    generated cell prompt. Non-picture references still follow the selected framing scope.
 
     A reference that claims nothing stays: its purpose is unknown, so dropping it would
     be a silent change. If the filter would drop everything, the first enabled
     reference is kept so the person is still conditioned. ``scope="every cell"``
-    turns the filter off and hands every enabled reference to every cell.
+    turns the non-picture filter off and hands every enabled reference to every cell.
 
     A cell that names its own face reference (``cell.face_ref``, the panel's drag-and-drop)
-    gives it the face attribute. In filtered views it moves first; in the nipple macros it
-    keeps its import-order tag. See :func:`cell_face_reference`.
+    gives it the face attribute without changing its stable image number. See
+    :func:`cell_face_reference`.
     """
     enabled = [ref for ref in spec.refs if ref.enabled]
-    if cell.view in ("nipple", "nipple-side"):
-        # A macro reference needs the full import-order picture list: omitting hidden
-        # slots here would make H3's Picture tags point at different images.
-        face = cell_face_reference(cell, enabled)
-        if face is not None:
-            role = str(face.role or "").strip()
-            if "face" not in reference_attributes(role):
-                role = f"{role}, face".strip(" ,") if role else "face"
-            face = replace(face, role=role)
-            enabled = [
-                face if ref.kind == face.kind and ref.source == face.source else ref
-                for ref in enabled
-            ]
-        return enabled
-
-    if str(scope or "").strip().lower() == "every cell":
-        return enabled
+    every_cell = str(scope or "").strip().lower() == "every cell"
     hidden = set(attributes_hidden_by(cell.view))
     kept: list[SheetRef] = []
     for ref in enabled:
+        if ref.kind == "picture" or every_cell:
+            kept.append(ref)
+            continue
         claimed = reference_attributes(ref.role)
         if claimed and claimed <= hidden:
             continue
         kept.append(ref)
     if not kept:
         kept = enabled[:1]
-    # The cell's OWN face reference - a tile dropped on this panel - leads the list and is given
-    # the face attribute if its role did not already claim it. H3 has no per-reference weight, so
-    # "the likeness in THIS panel comes from that picture" is said by making it <Picture 1> and by
-    # letting the lines that name the identity owner (attribution, the closing reminder, the blur
-    # decision) find it. An explicit drop also outranks the framing filter: asking for that picture
-    # in this panel is a decision, not something to be quietly dropped because a face view cannot
-    # show a garment.
+    # A tile dropped on this panel is given the face attribute without moving its picture slot:
+    # every cell must continue to use the same <Picture N> for the same image.
     face = cell_face_reference(cell, enabled)
     if face is not None:
         role = str(face.role or "").strip()
         if "face" not in reference_attributes(role):
             role = f"{role}, face".strip(" ,") if role else "face"
-        face = replace(face, role=role)
-        kept = [face] + [ref for ref in kept if ref.file != face.file]
+        face = replace(face, role=role, preferred_identity=True)
+        if face.kind == "picture":
+            kept = [
+                face if ref.kind == face.kind and ref.source == face.source else ref
+                for ref in kept
+            ]
+        else:
+            kept = [
+                face,
+                *(
+                    ref for ref in kept
+                    if not (ref.kind == face.kind and ref.source == face.source)
+                ),
+            ]
 
     counters: dict[str, int] = {}
     out: list[SheetRef] = []
     for ref in kept:
         index = counters.get(ref.kind, 0)
         counters[ref.kind] = index + 1
-        # A copy: the run's own numbering (and the tile badges) stay untouched.
+        # Pictures are complete and ordered, so their indices remain fixed across cells.
+        # Filtered video/audio slots retain the existing compact per-cell numbering.
         out.append(ref if ref.index == index else replace(ref, index=index))
     return out
 
@@ -3126,10 +3120,23 @@ def build_cell_prompt(spec: SheetSpec, cell: SheetCell, *, refs: list[SheetRef] 
     Order matters for H3: the user's global description first (identity), then the
     reference legend, then the framing/pose/expression instructions for THIS cell,
     then any extra text the user typed on the cell. Reference tags are always
-    spelled out so the official tag parser matches them. ``refs`` is the subset this
-    cell receives (see :func:`cell_references`).
+    spelled out so the official tag parser matches them. Every enabled picture is included
+    in ``refs``; non-picture refs may be filtered by scope (see :func:`cell_references`).
+    Explicit cell prompts are preserved, with a list appended only for picture tags they
+    do not already contain.
     """
     if cell.prompt_override.strip():
+        missing = [
+            ref for ref in spec.pictures
+            if ref.enabled and ref.tag not in cell.prompt_override
+        ]
+        if missing:
+            labels = []
+            for ref in missing:
+                role = ref.role.strip()
+                labels.append(f"{ref.tag} ({role})" if role else ref.tag)
+            listing = f"Reference images: {', '.join(labels)}."
+            return f"{cell.prompt_override}\n\n{listing}"
         return cell.prompt_override
 
     lines: list[str] = []

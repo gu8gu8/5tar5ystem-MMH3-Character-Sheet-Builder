@@ -601,13 +601,8 @@ def test_an_anatomy_reference_owns_the_body_and_must_not_supply_the_face():
     assert ss.blur_face_decisions(spec)[("picture", 1)] == "blur"
 
 
-def test_the_framing_filter_drops_an_anatomy_reference_it_cannot_show():
-    """A close-up cannot show the anatomy, so that reference is left out of the wiring.
-
-    It used to be *kept*: an unread role claimed nothing, and a reference that claims
-    nothing is never dropped (its purpose is unknown). Reading the words is what lets a
-    face cell stop being conditioned on a nude photograph.
-    """
+def test_every_cell_lists_all_pictures_without_renumbering_hidden_roles():
+    """A framing may hide an attribute, but it cannot change a picture's stable tag."""
     spec = ss.parse_sheet_spec(
         {
             "refs": {
@@ -624,16 +619,15 @@ def test_the_framing_filter_drops_an_anatomy_reference_it_cannot_show():
         }
     )
     by_id = {cell.id: cell for cell in spec.enabled_cells}
-    assert [ref.file for ref in ss.cell_references(spec, by_id["face"])] == ["face.jpg"]
-    for view in ("portrait", "front"):
-        assert [ref.file for ref in ss.cell_references(spec, by_id[view])] == [
-            "face.jpg",
-            "nude.jpg",
-        ]
-    # A chest-up portrait shows the chest and not the groin: it names one, not the other.
-    portrait = ss.build_cell_prompt(spec, by_id["portrait"])
-    assert "Take the breasts only from <Picture 2>." in portrait
-    assert "intimate anatomy" not in portrait
+    expected = [("face.jpg", "<Picture 1>"), ("nude.jpg", "<Picture 2>")]
+    for view in ("face", "portrait", "front"):
+        cell = by_id[view]
+        refs = ss.cell_references(spec, cell)
+        assert [(ref.file, ref.tag) for ref in refs] == expected
+        prompt = ss.build_cell_prompt(spec, cell, refs=refs)
+        legend = prompt.split("\n\n", 1)[0]
+        assert "<Picture 1>" in legend
+        assert "<Picture 2>" in legend
 
 
 def test_nipple_cell_keeps_every_imported_picture_number():
@@ -689,7 +683,7 @@ def test_nipple_side_cell_keeps_every_imported_picture_number():
     assert "<Picture 3> is the sole source of the breasts." in prompt
 
 
-def test_prompt_override_round_trips_and_replaces_the_generated_prompt():
+def test_prompt_override_keeps_its_text_and_lists_every_picture():
     override = "Use <Picture 2> for the detail. Keep the crop tight."
     spec = ss.parse_sheet_spec(
         {
@@ -698,28 +692,33 @@ def test_prompt_override_round_trips_and_replaces_the_generated_prompt():
         }
     )
 
-    assert ss.build_cell_prompt(spec, spec.cells[0]) == override
+    prompt = ss.build_cell_prompt(spec, spec.cells[0])
+    assert prompt.startswith(override + "\n\n")
+    assert "<Picture 1>" in prompt
+    assert "<Picture 2>" in prompt
     restored = ss.parse_sheet_spec(spec.to_dict())
     assert restored.cells[0].prompt_override == override
-    assert ss.build_cell_prompt(restored, restored.cells[0]) == override
+    restored_prompt = ss.build_cell_prompt(restored, restored.cells[0])
+    assert restored_prompt.startswith(override + "\n\n")
+    assert "<Picture 1>" in restored_prompt
+    assert "<Picture 2>" in restored_prompt
 
 
-def test_a_cell_only_gets_the_references_its_framing_can_show():
-    """The reported bug: a face close-up rendered the OTHER picture's face.
-
-    H3 conditions on every reference it is handed and has no per-reference weight, so
-    asking is not enough - the outfit photo has to be left out of the wiring.
-    """
+def test_every_cell_keeps_all_picture_references_in_the_same_order():
+    """Every prompt and work item uses the source's stable picture numbering."""
     spec = _two_ref_spec(view="face")
     cell = spec.enabled_cells[0]
     refs = ss.cell_references(spec, cell)
-    assert [(ref.tag, ref.file) for ref in refs] == [("<Picture 1>", "face.jpg")]
+    assert [(ref.tag, ref.file) for ref in refs] == [
+        ("<Picture 1>", "face.jpg"),
+        ("<Picture 2>", "body.jpg"),
+    ]
     prompt = ss.build_cell_prompt(spec, cell, refs=refs)
-    assert "<Picture 1>" in prompt
-    assert "<Picture 2>" not in prompt, "a picture the run did not wire must never be named"
-    assert "Use <Picture 1> for the face, the glasses and the hair." in prompt
+    legend = prompt.split("\n\n", 1)[0]
+    assert "<Picture 1> is the sole source of the face, the glasses and the hair." in legend
+    assert "<Picture 2> is the body and clothes reference." in legend
 
-    # A portrait still shows the outfit, so both references stay.
+    # Other views retain exactly the same tags and order.
     portrait = _two_ref_spec(view="portrait").enabled_cells[0]
     kept = ss.cell_references(_two_ref_spec(view="portrait"), portrait)
     assert [ref.file for ref in kept] == ["face.jpg", "body.jpg"]
@@ -733,10 +732,26 @@ def test_a_cell_only_gets_the_references_its_framing_can_show():
 
 
 def test_the_framing_filter_can_be_turned_off_and_never_leaves_a_cell_bare():
-    spec = _two_ref_spec(view="face")
+    spec = ss.parse_sheet_spec(
+        {
+            "refs": {
+                "pictures": [
+                    {"imageFile": "face.jpg", "role": "face and hair"},
+                    {"imageFile": "body.jpg", "role": "body and clothes"},
+                ],
+                "videos": [{"videoFile": "outfit.mp4", "role": "clothing"}],
+            },
+            "cells": [{"id": "c", "view": "face"}],
+        }
+    )
     cell = spec.enabled_cells[0]
+    per_framing = ss.cell_references(spec, cell)
+    assert [ref.file for ref in per_framing] == ["face.jpg", "body.jpg"]
     every = ss.cell_references(spec, cell, scope="every cell")
-    assert [ref.file for ref in every] == ["face.jpg", "body.jpg"]
+    assert [ref.file for ref in every] == ["face.jpg", "body.jpg", "outfit.mp4"]
+    assert [ref.tag for ref in per_framing if ref.kind == "picture"] == [
+        ref.tag for ref in every if ref.kind == "picture"
+    ], "scope changes cannot shift picture identifiers"
 
     # Only an outfit reference and a face cell: keep it rather than conditioning on
     # nothing at all.
@@ -750,8 +765,8 @@ def test_the_framing_filter_can_be_turned_off_and_never_leaves_a_cell_bare():
     assert [(ref.tag, ref.file) for ref in kept] == [("<Picture 1>", "outfit.jpg")]
 
 
-def test_a_cell_renumbers_the_references_it_receives():
-    """Dropping a reference renumbers the rest, and the prompt follows the wiring."""
+def test_a_cell_does_not_renumber_or_reorder_its_picture_references():
+    """A face reference chosen per cell gets its role, but keeps its picture identifier."""
     spec = ss.parse_sheet_spec(
         {
             "refs": {
@@ -766,9 +781,12 @@ def test_a_cell_renumbers_the_references_it_receives():
     cell = spec.enabled_cells[0]
     refs = ss.cell_references(spec, cell)
     assert [(ref.tag, ref.file, ref.source) for ref in refs] == [
-        ("<Picture 1>", "face.jpg", 1)
-    ], "the second picture is now the first one H3 sees"
-    assert "<Picture 2>" not in ss.build_cell_prompt(spec, cell, refs=refs)
+        ("<Picture 1>", "outfit.jpg", 0),
+        ("<Picture 2>", "face.jpg", 1),
+    ], "every picture keeps the same number in the cell"
+    prompt = ss.build_cell_prompt(spec, cell, refs=refs)
+    assert "<Picture 1> is the clothing and body reference." in prompt
+    assert "<Picture 2> is the sole source of the face and the hair." in prompt
     # "glasses" must not also register as a generic accessory, and a word that only
     # looks like a keyword ("topic") must not register as clothing.
     assert "accessories" not in ss.reference_attributes("glasses")

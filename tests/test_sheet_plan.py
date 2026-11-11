@@ -65,9 +65,9 @@ def test_plan_action_returns_each_cells_prompt_and_its_references():
     assert [cell["id"] for cell in answer["cells"]] == ["close", "whole"]
 
     close, whole = answer["cells"]
-    assert close["refs"] == ["<Picture 1>"], "a close-up is wired with the face picture only"
+    assert close["refs"] == ["<Picture 1>", "<Picture 2>"]
     assert "<Picture 1>" in close["prompt"]
-    assert "<Picture 2>" not in close["prompt"], "never name a reference the cell was not given"
+    assert "<Picture 2>" in close["prompt"]
     assert "head, face, hair" in close["prompt"]
 
     assert whole["refs"] == ["<Picture 1>", "<Picture 2>"]
@@ -87,7 +87,9 @@ def test_plan_action_uses_a_saved_per_cell_prompt_override():
     answer = _call({"action": "plan", "spec": payload})
 
     assert answer["ok"] is True
-    assert answer["cells"][0]["prompt"] == override
+    prompt = answer["cells"][0]["prompt"]
+    assert prompt.startswith(override + "\n\n")
+    assert "<Picture 1>" in prompt
 
 
 def test_plan_reports_which_references_will_be_blurred():
@@ -99,7 +101,7 @@ def test_plan_reports_which_references_will_be_blurred():
     """
     answer = _call({"action": "plan", "spec": PAYLOAD})
     close, whole = answer["cells"]
-    assert close["blurred"] == [], "the close-up only receives the identity picture"
+    assert close["blurred"] == ["<Picture 2>"], "every cell receives the blurred outfit picture"
     assert whole["blurred"] == ["<Picture 2>"], "the outfit picture is the one blurred"
 
 

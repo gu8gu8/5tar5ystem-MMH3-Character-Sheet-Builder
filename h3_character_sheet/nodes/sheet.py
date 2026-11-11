@@ -805,12 +805,10 @@ class MiniMaxH3CharacterSheet(io.ComfyNode):
                     options=["per framing", "every cell"],
                     default=DEFAULT_REF_SCOPE,
                     tooltip=(
-                        "Which references each cell is given. H3 conditions on every "
-                        "reference at once and has no per-reference weight, so 'per "
-                        "framing' leaves out a reference whose whole role is hidden by "
-                        "the shot (an outfit photo on a face close-up) - which is what "
-                        "stops a close-up borrowing the other picture's face. 'every "
-                        "cell' sends them all to every cell."
+                        "All enabled pictures go to every cell in the same order, so "
+                        "<Picture N> always identifies the same image. 'Per framing' "
+                        "filters video/audio references whose whole role is hidden by "
+                        "the shot; 'every cell' sends those videos to every cell too."
                     ),
                 ),
                 # Appended last as well: another render policy, so inserting it mid-list

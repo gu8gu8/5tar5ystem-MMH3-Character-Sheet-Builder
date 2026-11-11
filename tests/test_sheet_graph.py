@@ -156,8 +156,8 @@ def test_no_director_nodes_or_imports_anywhere_in_the_pack():
 # --------------------------------------------------------------------------- #
 # per-cell references
 # --------------------------------------------------------------------------- #
-def test_a_face_cell_is_wired_only_the_references_it_can_show():
-    """The close-up must not be handed the outfit photo: that is what it copied."""
+def test_every_picture_is_wired_in_source_order_to_each_cell():
+    """All cell prompts can refer to all images using one stable Picture numbering."""
     spec = _spec(
         refs={
             "pictures": [
@@ -172,9 +172,10 @@ def test_a_face_cell_is_wired_only_the_references_it_can_show():
     )
     graph, _ = _build(spec)
     wired = _wired_references(graph)
-    assert _for_cell(wired, "close") == {"ref_images.ref_image_0": "face.png"}, (
-        "a face close-up is conditioned on the face picture alone"
-    )
+    assert _for_cell(wired, "close") == {
+        "ref_images.ref_image_0": "face.png",
+        "ref_images.ref_image_1": "body.png",
+    }, "a face close-up receives both pictures in their source order"
     assert _for_cell(wired, "whole") == {
         "ref_images.ref_image_0": "face.png",
         "ref_images.ref_image_1": "body.png",
@@ -183,12 +184,12 @@ def test_a_face_cell_is_wired_only_the_references_it_can_show():
     nodes = graph.finalize()
     close_prompt = _for_cell(nodes, "close")["inputs"]["prompt"]
     assert "<Picture 1>" in close_prompt
-    assert "<Picture 2>" not in close_prompt, "never name a reference the cell was not given"
+    assert "<Picture 2>" in close_prompt, "every wired picture is listed in every prompt"
     assert "<Picture 2>" in _for_cell(nodes, "whole")["inputs"]["prompt"]
 
 
-def test_a_dropped_face_picture_is_renumbered_to_the_first_slot():
-    """H3 numbers what it receives, so the wire and the prompt have to agree."""
+def test_picture_identifiers_never_change_when_reference_roles_are_filtered():
+    """A hidden role does not remove its image or renumber later images."""
     spec = _spec(
         refs={
             "pictures": [
@@ -199,8 +200,13 @@ def test_a_dropped_face_picture_is_renumbered_to_the_first_slot():
         cells=[{"id": "close", "view": "face"}],
     )
     graph, _ = _build(spec)
-    assert _for_cell(_wired_references(graph), "close") == {"ref_images.ref_image_0": "face.png"}
-    assert "<Picture 2>" not in _for_cell(graph.finalize(), "close")["inputs"]["prompt"]
+    assert _for_cell(_wired_references(graph), "close") == {
+        "ref_images.ref_image_0": "body.png",
+        "ref_images.ref_image_1": "face.png",
+    }
+    prompt = _for_cell(graph.finalize(), "close")["inputs"]["prompt"]
+    assert "<Picture 1> is the clothing and body reference." in prompt
+    assert "Use <Picture 2> for the face, the glasses and the hair." in prompt
 
 
 def test_the_scope_widget_can_hand_every_reference_to_every_cell():
