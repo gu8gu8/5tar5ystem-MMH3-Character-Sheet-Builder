@@ -3096,6 +3096,13 @@ def cell_closing_lines(
     refs: list[SheetRef] | None = None,
 ) -> list[str]:
     """The lines every prompt ends with: attribution, backdrop, identity restated."""
+    if cell.view == "nipple-side":
+        return (
+            [f"Do not include: {spec.negative_prompt.strip()}."]
+            if spec.negative_prompt.strip()
+            else []
+        )
+
     source = refs if refs is not None else spec.refs
     wired = [ref for ref in source if ref.enabled and ref.kind in ("picture", "video")]
     lines = list(attribution_lines(spec, cell, refs=refs))

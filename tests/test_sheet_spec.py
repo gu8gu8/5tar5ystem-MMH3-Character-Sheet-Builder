@@ -683,6 +683,42 @@ def test_nipple_side_cell_keeps_every_imported_picture_number():
     assert "<Picture 3> is the sole source of the breasts." in prompt
 
 
+def test_nipple_side_prompt_keeps_reference_tags_without_generic_attribution_rules():
+    spec = ss.parse_sheet_spec(
+        {
+            "refs": {
+                "pictures": [
+                    {"imageFile": f"picture-{index}.jpg", "role": role}
+                    for index, role in enumerate(
+                        (
+                            "face and hair",
+                            "body shape",
+                            "clothing",
+                            "breasts",
+                            "breasts",
+                            "nipple",
+                            "intimate anatomy",
+                            "body shape",
+                        ),
+                        start=1,
+                    )
+                ]
+            },
+            "cells": [{"id": "nipple-side", "view": "nipple-side"}],
+        }
+    )
+    cell = spec.enabled_cells[0]
+    refs = ss.cell_references(spec, cell)
+    prompt = ss.build_cell_prompt(spec, cell, refs=refs)
+
+    for number in range(1, 9):
+        assert f"<Picture {number}>" in prompt
+    for instruction in ("Reference rule:", "must not change", "must not supply", "Identity:"):
+        assert instruction not in prompt
+    assert "Extreme macro photograph" in prompt
+    assert "exactly 90 degrees at the side" in prompt
+
+
 def test_prompt_override_keeps_its_text_and_lists_every_picture():
     override = "Use <Picture 2> for the detail. Keep the crop tight."
     spec = ss.parse_sheet_spec(
