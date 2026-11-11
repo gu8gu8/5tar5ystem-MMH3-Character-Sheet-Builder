@@ -128,7 +128,7 @@ class H3SheetCellSink(io.ComfyNode):
             cell_key, saved, sum(1 for key, value in progress.items() if key not in ("planned", "last", "frames") and value),
             progress["planned"],
         )
-        if keep_frames and cells:
+        if keep_frames and cells and not spec.render.only_cells:
             _prune_unplanned(store, cells, cell_key)
         if clip is not None:
             # The clip was written by core SaveVideo just before this node ran: keep the
@@ -144,7 +144,9 @@ def _prune_unplanned(store: SheetStore, planned_ids: set[str], current: str) -> 
 
     The sheet folder is reused between runs, so yesterday's "profile" cell would
     otherwise sit in the results list - and in the folder listing - as a ghost the
-    current plan does not contain.
+    current plan does not contain. Scoped rerenders skip this cleanup: their plan is
+    intentionally narrowed to one cell, while the other cells' frames are still needed
+    to recompose the existing sheet.
     """
     removed: list[str] = []
     frames_dir = store.frames_dir

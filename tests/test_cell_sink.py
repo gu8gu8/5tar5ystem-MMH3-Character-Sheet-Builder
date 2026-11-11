@@ -67,6 +67,26 @@ def test_sink_records_the_plan_so_every_cell_is_listed_before_it_renders(tmp_pat
     assert listed["front"]["rendered"] is False, "a cell with no frames yet is not rendered"
 
 
+def test_scoped_rerender_preserves_frames_for_other_cells(tmp_path, monkeypatch):
+    _run_sink(tmp_path, monkeypatch, cell_id="hero", frames=3)
+    _run_sink(tmp_path, monkeypatch, cell_id="front", frames=3)
+    store = sheet_store.SheetStore("sink test", node_id=None)
+    original_front_frames = store.frame_files("front")
+    assert len(original_front_frames) == 3
+
+    reroll_payload = _spec(render={"onlyCells": ["hero"]})
+    _run_sink(
+        tmp_path,
+        monkeypatch,
+        cell_id="hero",
+        frames=4,
+        payload=json.dumps(reroll_payload),
+    )
+
+    assert len(store.frame_files("hero")) == 4, "the rerolled cell gets its new frames"
+    assert store.frame_files("front") == original_front_frames, "untargeted frames are retained"
+
+
 def test_keep_frames_off_writes_no_frames(tmp_path, monkeypatch):
     _run_sink(tmp_path, monkeypatch, keep=False)
     store = sheet_store.SheetStore("sink test", node_id=None)
