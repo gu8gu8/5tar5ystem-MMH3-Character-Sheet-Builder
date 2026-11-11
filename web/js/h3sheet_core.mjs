@@ -28,6 +28,7 @@ export const VIEWS = [
     ["face", "Face close up"],
     ["portrait", "Portrait"],
     ["portrait-three-quarter", "Portrait 3/4"],
+    ["portrait-profile", "Portrait side"],
     ["front", "Full body front"],
     ["profile", "Full body side"],
     ["back", "Full body back"],
@@ -361,6 +362,7 @@ export const FRAMING_DISTANCES = {
     butt: "close",
     portrait: "medium",
     "portrait-three-quarter": "medium",
+    "portrait-profile": "medium",
     front: "full",
     "three-quarter": "full",
     "three-quarter-back": "full",
@@ -1344,6 +1346,7 @@ export const GLYPH_SPRITE = `
 <symbol id="mk-head-side" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M12 26c-2-2-3-5-3-9 0-5 3-9 7.5-9S23 12 23 16c0 3-1.4 5-3.6 6.4l.4 3.6Z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="19" cy="15" r="1" fill="currentColor"/></symbol>
 <symbol id="mk-head-three-quarter" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><ellipse cx="15.4" cy="16" rx="6.9" ry="9.4" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="12.6" cy="14.4" r="1" fill="currentColor"/><circle cx="18.2" cy="14.6" r="1" fill="currentColor"/><path d="M20.4 15.6c1.2.9 1.5 2 .8 3.2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M13.6 20.6c1.5.9 2.9.9 4.2 0" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
 <symbol id="mk-bust-three-quarter" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><ellipse cx="15.6" cy="13.2" rx="5.2" ry="6.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13.3" cy="12.2" r=".9" fill="currentColor"/><circle cx="17.7" cy="12.4" r=".9" fill="currentColor"/><path d="M19.2 13.2c.9.7 1.1 1.5.5 2.4" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><path d="M12.6 17.2c1.2.7 2.4.7 3.4 0" fill="none" stroke="currentColor" stroke-width=".9" stroke-linecap="round"/><path d="M8.6 28c.7-4.7 3.6-7.4 7.3-7.4s6.6 2.7 7.3 7.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+<symbol id="mk-bust-side" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M18 7c-4 0-6 3.2-6 7.2 0 2.5 1 4.4 2.7 5.7l-.3 2.5h5.2l-.2-3.1c1.5-1.1 2.4-2.7 2.4-4.8 0-4.1-1.6-7.5-3.8-7.5Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M17 20.5v2.2c-4 .3-6.3 1.8-7.7 5.3h13.4c-.9-3.2-2.7-4.8-5.7-5.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M12 12.5c-1 .5-1.4 1.1-.6 1.7" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><circle cx="15" cy="13" r=".8" fill="currentColor"/></symbol>
 <symbol id="mk-head-back" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M11 27c-1.6-2-2.6-5-2.6-9 0-5 3.4-9 7.6-9s7.6 4 7.6 9c0 4-1 7-2.6 9Z" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
 <symbol id="mk-eyes" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M7 16c2.5-4 5-4 7 0-2 4-4.5 4-7 0Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M18 16c2.5-4 5-4 7 0-2 4-4.5 4-7 0Z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="10.5" cy="16" r="1.1" fill="currentColor"/><circle cx="21.5" cy="16" r="1.1" fill="currentColor"/></symbol>
 <symbol id="mk-mouth" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M9 16c3.5-4.5 10.5-4.5 14 0-3.5 4.5-10.5 4.5-14 0Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10.5 16h11" stroke="currentColor" stroke-width="1" opacity=".8"/></symbol>
@@ -1369,6 +1372,7 @@ export const VIEW_MARKS = {
     face: "mk-head",
     portrait: "mk-bust",
     "portrait-three-quarter": "mk-bust-three-quarter",
+    "portrait-profile": "mk-bust-side",
     front: "mk-figure",
     profile: "mk-figure-side",
     back: "mk-figure-back",
@@ -3205,7 +3209,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
         const short = (text) => String(text || "")
             .replace(/^Full body /, "").replace(/ close up$/, "").replace(/^Head profile$/, "profile");
         const view = short(viewShort(cell.view));
-        if (["face", "portrait"].includes(String(cell.view))) {
+        if (["face", "portrait", "portrait-three-quarter", "portrait-profile"].includes(String(cell.view))) {
             const expression = (EXPRESSIONS.find(([key]) => key === cell.expression) || [])[1];
             return `${view} · ${short(expression || "neutral")}`;
         }

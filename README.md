@@ -32,8 +32,8 @@ each one gets a free-text role - "face and hair", "body and clothes", "this voic
 is what the prompt says, and the render wires exactly the references a cell can use, so one picture
 can carry identity while another carries the outfit.
 
-**A matrix of cells.** 23 views (face close-up, portrait, front, 90 deg profile, back, 45 deg
-views, over-shoulder, hands, legs...), 13 poses (neutral, A/T-pose, sitting, kneeling, walking,
+**A matrix of cells.** 24 views (face close-up, straight-on and side portraits, front, 90 deg
+profile, back, 45 deg views, over-shoulder, hands, legs...), 13 poses (neutral, A/T-pose, sitting, kneeling, walking,
 hands on hips...) and 20 expressions - including arousal / pleasure / orgasm, written as face
 states. Tick what you want, press *Build cells*, and every cell prompt is generated from the
 vocabulary (framing, pose, expression, what that framing cannot show).
@@ -600,8 +600,8 @@ setting nobody chose.
    `Cells n` and `Results n`, so the panel stays usable without scrolling through a
    wall of knobs.
 3. In **Cells** - tick views / poses / expressions and press **Build cells**:
-   * Views: face close up, portrait (chest + face), **portrait 3/4 (45 deg chest-up)**, full body
-     front, full body
+   * Views: face close up, portrait (chest + face), **portrait 3/4 (45 deg chest-up)**,
+     **portrait side (90 deg chest-up)**, full body front, full body
      90 deg side, full body from behind, **3/4 front**, **3/4 back**, **full body from
      above (high angle)**, **full body from below (low angle)**, **over the shoulder**,
      **head profile**, **head 3/4 (45 deg close-up)**, **back of the head and hair**,

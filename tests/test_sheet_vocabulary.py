@@ -118,6 +118,24 @@ def test_the_portrait_three_quarter_is_the_chest_up_twin_of_the_45_degree_family
     assert "portrait-three-quarter" not in ss._HAIR_HOLDS_BY_VIEW
 
 
+def test_the_portrait_profile_is_a_true_chest_up_side_view():
+    view = ss._VIEW_BY_KEY["portrait-profile"]
+    prompt = view.prompt.lower()
+    assert ss.framing_distance("portrait-profile") == "medium"
+    assert ss.framing_distance("portrait-profile") == ss.framing_distance("portrait")
+    assert "portrait-profile" in ss.FACE_FRAMINGS
+    assert "portrait-profile" in ss.PROFILE_FRAMINGS
+    assert ss.VIEW_VARIANTS["portrait-profile"] == "expression"
+    assert "exactly 90 degrees" in prompt
+    assert "true side profile" in prompt and "not three-quarter" in prompt
+    assert "only one eye visible" in prompt
+    assert "no eye contact" in prompt
+    assert "not a face-only close-up" in prompt and "not a full body" in prompt
+    for hidden in ("intimate", "legwear", "shoes"):
+        assert hidden in ss.attributes_hidden_by("portrait-profile")
+    assert ss._HAIR_HOLDS_BY_VIEW["portrait-profile"] == "seen from the side"
+
+
 def test_the_panel_offers_every_view_and_the_same_camera_distances():
     """The panel keeps its own copies of the tick row and of ``FRAMING_DISTANCES``.
 
@@ -225,6 +243,11 @@ def test_a_side_framing_says_the_expression_reads_in_profile():
         "a head profile shows the whole face side, and does not say 'no eye contact'"
     )
     assert "Visible in profile only." not in prompt2, "a head profile shows the whole face side"
+    spec3, cell3 = _cell("portrait-profile", expression="smile")
+    prompt3 = ss.build_cell_prompt(spec3, cell3)
+    assert "Visible in profile only." in prompt3
+    assert "Warm smile." in prompt3
+    assert "eyes engaged" not in prompt3
 
 
 def test_the_aside_is_only_used_where_the_view_text_forbids_eye_contact():

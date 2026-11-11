@@ -1595,6 +1595,9 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     assert.equal(core.FRAMING_DISTANCES["portrait-three-quarter"],
         core.FRAMING_DISTANCES.portrait,
         "and it chains with the portrait, not with the head close-ups or the full body");
+    assert.equal(views.indexOf("portrait-profile"), views.indexOf("portrait-three-quarter") + 1,
+        "the true side portrait sits beside the other chest-up views");
+    assert.equal(core.FRAMING_DISTANCES["portrait-profile"], "medium");
     ok.push("the chest-up 45 sits with the portrait, and every framing has a mark that is drawn");
 }
 

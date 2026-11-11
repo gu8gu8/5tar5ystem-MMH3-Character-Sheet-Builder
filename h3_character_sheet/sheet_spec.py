@@ -143,6 +143,16 @@ VIEWS: tuple[SheetOption, ...] = (
         "the frame, so this is not a face-only close-up and not a full body.",
     ),
     SheetOption(
+        "portrait-profile",
+        "Portrait profile (90 degrees)",
+        "Medium close-up framed at the chest, viewed from exactly 90 degrees to the side. "
+        "The head is a true side profile, not three-quarter: the forehead, nose, lips, chin, "
+        "jaw line and one eye are seen in profile, with only one eye visible. The shoulders "
+        "and torso face the same direction as the head; the subject looks straight ahead, "
+        "away from the camera, with no eye contact. The top of the head and the chest are "
+        "both inside the frame, so this is not a face-only close-up and not a full body.",
+    ),
+    SheetOption(
         "front",
         "Full body (facing forward)",
         "Full body straight on, standing, weight even, arms clear of the body. "
@@ -336,6 +346,8 @@ FRAMING_DISTANCES: dict[str, str] = {
     # The camera did not move back from ``portrait``, so it chains with it and breaks from
     # the head close-ups, which are the same angle a scale closer.
     "portrait-three-quarter": "medium",
+    # A true side profile at the same chest-up distance as the other portraits.
+    "portrait-profile": "medium",
     "front": "full",
     "three-quarter": "full",
     "three-quarter-back": "full",
@@ -354,10 +366,10 @@ POSE_FRAMINGS: tuple[str, ...] = (
 
 #: Framings where the face is the subject: the expression is always stated. The mouth crop
 #: counts: the expression IS the subject there, which is what a mouth board is for.
-FACE_FRAMINGS: tuple[str, ...] = ("face", "portrait", "portrait-three-quarter", "face-profile", "face-three-quarter", "eyes", "mouth")
+FACE_FRAMINGS: tuple[str, ...] = ("face", "portrait", "portrait-three-quarter", "portrait-profile", "face-profile", "face-three-quarter", "eyes", "mouth")
 
 #: Framings seen from the side, where an expression only reads in profile.
-PROFILE_FRAMINGS: tuple[str, ...] = ("profile", "face-profile")
+PROFILE_FRAMINGS: tuple[str, ...] = ("profile", "portrait-profile", "face-profile")
 
 #: Framings nobody can see a face in - an expression there would be a lie. The body crops
 #: belong here for the same reason the hands and legs do: there is no mouth in a chest or
@@ -407,6 +419,7 @@ VIEW_VARIANTS: dict[str, str] = {
     "face": "expression",
     "portrait": "expression",
     "portrait-three-quarter": "expression",
+    "portrait-profile": "expression",
     "face-profile": "expression",
     "face-three-quarter": "expression",
     "eyes": "expression",
@@ -929,7 +942,7 @@ class SheetCell:
         parts = [self.view_option.label]
         if self.view in ("front", "profile", "back"):
             parts.append(self.pose_option.label)
-        if self.view in ("face", "portrait", "portrait-three-quarter"):
+        if self.view in ("face", "portrait", "portrait-three-quarter", "portrait-profile"):
             parts.append(self.expression_option.label)
         return " · ".join(parts)
 
@@ -2082,6 +2095,8 @@ ATTRIBUTES_HIDDEN_BY_VIEW: dict[str, tuple[str, ...]] = {
     # The same chest-up framing, 45 degrees round: it stops above the groin exactly like
     # the straight-on portrait, so the same claims are out of shot.
     "portrait-three-quarter": ("intimate", "legwear", "shoes"),
+    # The chest-up side profile has the same crop as the other portraits.
+    "portrait-profile": ("intimate", "legwear", "shoes"),
     # A crop of the hands shows no body, but the sleeves are in frame - so clothing stays.
     "hands": ("body", "breasts", "intimate"),
     # Waist down: no face in the shot, and the guard in cell_references keeps the
@@ -2096,6 +2111,7 @@ ATTRIBUTES_HIDDEN_BY_VIEW: dict[str, tuple[str, ...]] = {
 #: reference's dark hair while every view the reference covers kept the braids.
 _HAIR_HOLDS_BY_VIEW: dict[str, str] = {
     "profile": "seen from the side",
+    "portrait-profile": "seen from the side",
     "face-profile": "seen from the side",
     "three-quarter-back": "seen from behind and to one side",
     "back": "seen from behind",
@@ -3027,7 +3043,8 @@ def cell_shot_lines(
     if cell.view in POSE_FRAMINGS or cell.pose != "neutral":
         lines.append(cell.pose_option.prompt)
     if cell.view in FACE_FRAMINGS:
-        lines.append(cell.expression_option.prompt)
+        scope = " Visible in profile only." if cell.view in NO_EYE_CONTACT_VIEWS else ""
+        lines.append(f"{expression_reads_in_view(cell.expression_option, cell.view)}{scope}")
     elif cell.view not in NO_FACE_FRAMINGS and cell.expression != "neutral":
         # A whole-body framing still takes an expression - it steers the face - and a
         # profile only reads one from the side. A framing with no face in it gets
