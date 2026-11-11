@@ -311,6 +311,13 @@ VIEWS: tuple[SheetOption, ...] = (
         "No face in shot.",
     ),
     SheetOption(
+        "groin-macro",
+        "Groin macro",
+        "Extreme macro close-up of the external genital area of an adult character, "
+        "cropped tightly so the anatomy and surrounding skin fill the frame. Neutral "
+        "clinical lighting, sharp detail, no thighs, waist or face in shot.",
+    ),
+    SheetOption(
         "butt",
         "Butt (close up, from behind)",
         "Framed on the buttocks seen from directly behind at hip height: both cheeks "
@@ -348,6 +355,7 @@ FRAMING_DISTANCES: dict[str, str] = {
     "breasts-side": "close",
     "nipple": "close",
     "groin": "close",
+    "groin-macro": "close",
     "butt": "close",
     "portrait": "medium",
     # The chest-up framing at 45 degrees - the middle distance of the angle that also
@@ -386,7 +394,7 @@ PROFILE_FRAMINGS: tuple[str, ...] = ("profile", "portrait-profile", "face-profil
 #: deliberately NOT here - it is the framing an expression is READ from.
 NO_FACE_FRAMINGS: tuple[str, ...] = (
     "back", "three-quarter-back", "head-back", "hands", "legs",
-    "feet", "breasts", "breasts-side", "nipple", "groin", "butt",
+    "feet", "breasts", "breasts-side", "nipple", "groin", "groin-macro", "butt",
 )
 
 #: The framings whose own frame text says the subject is NOT looking at the viewer (a
@@ -444,6 +452,7 @@ VIEW_VARIANTS: dict[str, str] = {
     "breasts-side": "single",
     "nipple": "single",
     "groin": "single",
+    "groin-macro": "single",
     "butt": "single",
 }
 
@@ -2101,6 +2110,7 @@ ATTRIBUTES_HIDDEN_BY_VIEW: dict[str, tuple[str, ...]] = {
     "breasts-side": ("face", "eyes", "glasses", "body", "legwear", "shoes"),
     "nipple": ("face", "eyes", "glasses", "hair", "body", "legwear", "shoes"),
     "groin": ("face", "eyes", "glasses", "hair", "shoes"),
+    "groin-macro": ("face", "eyes", "glasses", "hair", "shoes"),
     "butt": ("face", "eyes", "glasses", "shoes"),
     "portrait": ("intimate", "legwear", "shoes"),
     # The same chest-up framing, 45 degrees round: it stops above the groin exactly like

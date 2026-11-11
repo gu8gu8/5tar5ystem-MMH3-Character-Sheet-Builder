@@ -1605,6 +1605,13 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
         pose: "neutral",
         expression: "neutral",
     }], "the side detail crop builds once instead of multiplying by expressions");
+    const groinMacro = core.buildCells(["groin-macro"], ["neutral"], ["smile"]);
+    assert.deepEqual(groinMacro, [{
+        id: "groin-macro-neutral-neutral",
+        view: "groin-macro",
+        pose: "neutral",
+        expression: "neutral",
+    }], "the macro detail crop builds once instead of multiplying by expressions");
     ok.push("the chest-up 45 sits with the portrait, and every framing has a mark that is drawn");
 }
 
