@@ -291,10 +291,13 @@ VIEWS: tuple[SheetOption, ...] = (
     SheetOption(
         "breasts-side",
         "Breasts side (close up)",
-        "Close-up of the chest from exactly 90 degrees at the side: the torso is turned "
-        "side-on to the camera and the breast is seen in true profile, with its natural "
+        "Tight close-up cropped from the base of the neck to just below the breasts, "
+        "filling the frame with the chest only. The lower edge ends immediately below "
+        "the breasts: no waist, abdomen, hips, tights or legs. The head and face are "
+        "completely outside the frame. Camera at exactly 90 degrees to the side; the "
+        "torso is turned side-on and the breast is seen in true profile, with its natural "
         "side contour and nipple visible. Do not turn the chest toward the camera; this "
-        "is not a front or three-quarter view. No face in shot.",
+        "is not a front or three-quarter view.",
     ),
     SheetOption(
         "nipple",

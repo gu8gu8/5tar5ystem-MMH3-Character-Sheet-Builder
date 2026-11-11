@@ -144,7 +144,13 @@ def test_the_breasts_side_view_is_a_single_close_up_profile_crop():
     assert "breasts-side" in ss.NO_FACE_FRAMINGS
     assert "exactly 90 degrees" in prompt
     assert "true profile" in prompt and "not a front or three-quarter view" in prompt
-    assert "no face in shot" in prompt
+    for boundary in (
+        "base of the neck",
+        "just below the breasts",
+        "no waist, abdomen, hips, tights or legs",
+        "head and face are completely outside the frame",
+    ):
+        assert boundary in prompt
     assert ss.attributes_hidden_by("breasts-side") == ss.attributes_hidden_by("breasts")
     cells = ss.cell_matrix(views=["breasts-side"], expressions=["smile", "frown"])
     assert len(cells) == 1
