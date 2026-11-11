@@ -1598,6 +1598,13 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     assert.equal(views.indexOf("portrait-profile"), views.indexOf("portrait-three-quarter") + 1,
         "the true side portrait sits beside the other chest-up views");
     assert.equal(core.FRAMING_DISTANCES["portrait-profile"], "medium");
+    const sideBreast = core.buildCells(["breasts-side"], ["neutral"], ["smile"]);
+    assert.deepEqual(sideBreast, [{
+        id: "breasts-side-neutral-neutral",
+        view: "breasts-side",
+        pose: "neutral",
+        expression: "neutral",
+    }], "the side detail crop builds once instead of multiplying by expressions");
     ok.push("the chest-up 45 sits with the portrait, and every framing has a mark that is drawn");
 }
 

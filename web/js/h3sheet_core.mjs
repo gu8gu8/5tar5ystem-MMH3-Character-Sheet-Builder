@@ -46,6 +46,7 @@ export const VIEWS = [
     ["mouth", "Mouth"],
     ["feet", "Feet"],
     ["breasts", "Breasts"],
+    ["breasts-side", "Breasts side"],
     ["nipple", "Nipple macro"],
     ["groin", "Groin"],
     ["butt", "Butt"],
@@ -357,6 +358,7 @@ export const FRAMING_DISTANCES = {
     mouth: "close",
     feet: "close",
     breasts: "close",
+    "breasts-side": "close",
     nipple: "close",
     groin: "close",
     butt: "close",
@@ -1354,6 +1356,7 @@ export const GLYPH_SPRITE = `
 <symbol id="mk-feet" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M11 9v9c0 5 1 7 4 7 2 0 3-2 3-6V9c0-3-7-3-7 0Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M21 11v7c0 4 .8 5.5 2.4 5.5 1.3 0 2-1.6 2-4.6V11c0-2.4-4.4-2.4-4.4 0Z" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
 <symbol id="mk-legs" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M12 8h8l-1.4 16h-2.2L16 15l-.4 9h-2.2Z" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
 <symbol id="mk-torso" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M11 12c0-4 2.2-6 5-6s5 2 5 6v7c0 3-2 4-5 4s-5-1-5-4Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M13 16h6" stroke="currentColor" stroke-width="1"/></symbol>
+<symbol id="mk-torso-side" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M17 6c-2.5 0-3.5 2.2-3.5 5.3v3.2c-2.4.4-3.2 1.8-2 3.3l2 2.2v6h8v-6.2c1.7-1.6 2.3-3.1 1-4.1-1-.8-2.2-.6-3 .2l-.2-4.6C19.2 8 18.4 6 17 6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="18" cy="16.8" r=".7" fill="currentColor"/></symbol>
 <symbol id="mk-nipple" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><circle cx="16" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="16" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M16 11.5v-2m0 13v-2m-4.5-4.5h-2m13 0h-2" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></symbol>
 <symbol id="mk-lower" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><path d="M10 10c0 6 1.5 12 6 12s6-6 6-12" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M13 12v8M19 12v8" stroke="currentColor" stroke-width="1"/></symbol>
 <symbol id="mk-rear" viewBox="0 0 32 32"><rect x="3" y="2" width="26" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".55"/><circle cx="12.5" cy="16" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="21" cy="16" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
@@ -1390,6 +1393,7 @@ export const VIEW_MARKS = {
     mouth: "mk-mouth",
     feet: "mk-feet",
     breasts: "mk-torso",
+    "breasts-side": "mk-torso-side",
     nipple: "mk-nipple",
     groin: "mk-lower",
     butt: "mk-rear",
@@ -2605,7 +2609,9 @@ export function buildCells(views, poses, expressions) {
     poses = poses.length ? poses : ["neutral"];
     expressions = expressions.length ? expressions : ["neutral"];
     for (const view of views) {
-        if (view === "front" || view === "profile" || view === "back") {
+        if (view === "breasts" || view === "breasts-side") {
+            cells.push({ id: `${view}-neutral-neutral`, view, pose: "neutral", expression: "neutral" });
+        } else if (view === "front" || view === "profile" || view === "back") {
             for (const pose of poses) {
                 cells.push({ id: `${view}-${pose}-neutral`, view, pose, expression: "neutral" });
             }

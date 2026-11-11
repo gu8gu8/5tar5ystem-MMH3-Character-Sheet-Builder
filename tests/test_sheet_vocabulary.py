@@ -136,6 +136,21 @@ def test_the_portrait_profile_is_a_true_chest_up_side_view():
     assert ss._HAIR_HOLDS_BY_VIEW["portrait-profile"] == "seen from the side"
 
 
+def test_the_breasts_side_view_is_a_single_close_up_profile_crop():
+    view = ss._VIEW_BY_KEY["breasts-side"]
+    prompt = view.prompt.lower()
+    assert ss.framing_distance("breasts-side") == ss.framing_distance("breasts") == "close"
+    assert ss.VIEW_VARIANTS["breasts-side"] == ss.VIEW_VARIANTS["breasts"] == "single"
+    assert "breasts-side" in ss.NO_FACE_FRAMINGS
+    assert "exactly 90 degrees" in prompt
+    assert "true profile" in prompt and "not a front or three-quarter view" in prompt
+    assert "no face in shot" in prompt
+    assert ss.attributes_hidden_by("breasts-side") == ss.attributes_hidden_by("breasts")
+    cells = ss.cell_matrix(views=["breasts-side"], expressions=["smile", "frown"])
+    assert len(cells) == 1
+    assert cells[0]["expression"] == "neutral"
+
+
 def test_the_panel_offers_every_view_and_the_same_camera_distances():
     """The panel keeps its own copies of the tick row and of ``FRAMING_DISTANCES``.
 

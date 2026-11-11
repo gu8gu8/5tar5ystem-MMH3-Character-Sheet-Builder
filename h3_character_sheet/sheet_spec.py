@@ -289,6 +289,14 @@ VIEWS: tuple[SheetOption, ...] = (
         "visible, nipples in shot, the collarbone above the frame. No face in shot.",
     ),
     SheetOption(
+        "breasts-side",
+        "Breasts side (close up)",
+        "Close-up of the chest from exactly 90 degrees at the side: the torso is turned "
+        "side-on to the camera and the breast is seen in true profile, with its natural "
+        "side contour and nipple visible. Do not turn the chest toward the camera; this "
+        "is not a front or three-quarter view. No face in shot.",
+    ),
+    SheetOption(
         "nipple",
         "Nipple (macro close up)",
         "Extreme macro close-up of one nipple and areola on an adult character, centred "
@@ -337,6 +345,7 @@ FRAMING_DISTANCES: dict[str, str] = {
     "mouth": "close",
     "feet": "close",
     "breasts": "close",
+    "breasts-side": "close",
     "nipple": "close",
     "groin": "close",
     "butt": "close",
@@ -377,7 +386,7 @@ PROFILE_FRAMINGS: tuple[str, ...] = ("profile", "portrait-profile", "face-profil
 #: deliberately NOT here - it is the framing an expression is READ from.
 NO_FACE_FRAMINGS: tuple[str, ...] = (
     "back", "three-quarter-back", "head-back", "hands", "legs",
-    "feet", "breasts", "nipple", "groin", "butt",
+    "feet", "breasts", "breasts-side", "nipple", "groin", "butt",
 )
 
 #: The framings whose own frame text says the subject is NOT looking at the viewer (a
@@ -432,6 +441,7 @@ VIEW_VARIANTS: dict[str, str] = {
     "mouth": "expression",
     "feet": "single",
     "breasts": "single",
+    "breasts-side": "single",
     "nipple": "single",
     "groin": "single",
     "butt": "single",
@@ -2088,6 +2098,7 @@ ATTRIBUTES_HIDDEN_BY_VIEW: dict[str, tuple[str, ...]] = {
     # The body crops: no face in any of them, and what the framing cannot contain is
     # dropped so a reference's claim about it does not get argued with.
     "breasts": ("face", "eyes", "glasses", "body", "legwear", "shoes"),
+    "breasts-side": ("face", "eyes", "glasses", "body", "legwear", "shoes"),
     "nipple": ("face", "eyes", "glasses", "hair", "body", "legwear", "shoes"),
     "groin": ("face", "eyes", "glasses", "hair", "shoes"),
     "butt": ("face", "eyes", "glasses", "shoes"),
