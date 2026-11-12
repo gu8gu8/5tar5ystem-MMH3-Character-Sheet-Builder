@@ -113,7 +113,9 @@ FRONTEND_KNOBS: tuple[dict[str, Any], ...] = (
 SKIPPED_WIDGETS = frozenset({"sheet_data", "h3_character_sheet_ui"})
 
 #: Types that are a socket, not a knob.
-LINK_TYPES = frozenset({"MODEL", "CLIP", "VAE", "IMAGE", "VIDEO", "AUDIO", "LATENT", "MASK"})
+LINK_TYPES = frozenset(
+    {"MODEL", "CLIP", "VAE", "IMAGE", "VIDEO", "AUDIO", "LATENT", "MASK", "SIGMAS"}
+)
 
 
 def _schema_knobs() -> list[tuple[str, str, dict[str, Any]]]:

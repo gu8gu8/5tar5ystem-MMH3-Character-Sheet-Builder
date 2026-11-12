@@ -342,6 +342,15 @@ def test_sampler_and_scheduler_reach_the_sampler_node():
     assert sched["inputs"]["denoise"] == 1.0
 
 
+def test_manual_sigmas_override_the_scheduler_for_every_cell():
+    graph, _ = _build(manual_sigmas="MANUAL_SIGMAS")
+    nodes = graph.finalize()
+    samplers = [node for node in nodes.values() if node["class_type"] == "SamplerCustomAdvanced"]
+    assert len(samplers) == 2
+    assert all(node["inputs"]["sigmas"] == "MANUAL_SIGMAS" for node in samplers)
+    assert not any(node["class_type"] == "BasicScheduler" for node in nodes.values())
+
+
 def test_shift_node_is_fed_the_model_and_both_shifts():
     graph, _ = _build(shift_video=9.0, shift_audio=2.5)
     nodes = graph.finalize()
@@ -579,6 +588,9 @@ def test_node_schema_is_registered_under_the_expected_names():
     names = {item.id for item in schema.inputs}
     assert {"model", "video_vae", "audio_vae", "clip", "sheet_data", "cell_size"} <= names
     assert {"frames_per_cell", "steps", "sampler_name", "scheduler", "ref_image_size"} <= names
+    assert "manual_sigmas" in names
+    optional = sheet_node.MiniMaxH3CharacterSheet.INPUT_TYPES()["optional"]
+    assert optional["manual_sigmas"][0] == "SIGMAS"
     assert "sheet_data" in names and "sheet_layout" in names
     assert sheet_node.NODE_CLASS_MAPPINGS["MiniMaxH3CharacterSheet"] is sheet_node.MiniMaxH3CharacterSheet
 

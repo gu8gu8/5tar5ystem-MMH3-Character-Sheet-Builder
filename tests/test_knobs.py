@@ -64,7 +64,9 @@ def test_the_browser_s_own_widgets_are_described_too():
 
 def test_the_links_and_the_panel_storage_are_not_knobs():
     described = {knob["name"] for knob in knobs.knob_list()}
-    assert not described & {"model", "video_vae", "audio_vae", "clip"}, "sockets are not knobs"
+    assert not described & {
+        "model", "video_vae", "audio_vae", "clip", "manual_sigmas",
+    }, "sockets are not knobs"
     assert not described & knobs.SKIPPED_WIDGETS, "sheet_data and the panel widget are not knobs"
 
 

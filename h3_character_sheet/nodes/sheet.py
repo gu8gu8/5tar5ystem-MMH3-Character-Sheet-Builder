@@ -24,7 +24,7 @@ Per cell the per-cell expansion is exactly the official reference-to-video chain
     MiniMaxH3ReferenceToVideo(clip, vae, audio_vae, prompt, ref_image_N...)
         -> conditioning + AV latent
     MiniMaxH3SigmaShift(model)                 -> shifted model
-    KSamplerSelect + BasicScheduler(shifted)   -> sampler + sigmas
+    KSamplerSelect + (manual SIGMAS or BasicScheduler(shifted)) -> sampler + sigmas
     BasicGuider(shifted, conditioning)
     RandomNoise(seed) -> SamplerCustomAdvanced -> VAEDecode(video vae) -> frames
 
@@ -107,6 +107,7 @@ def build_sheet_graph(
     steps: int = DEFAULT_STEPS,
     sampler_name: str = "res_multistep",
     scheduler: str = "simple",
+    manual_sigmas: Any = None,
     export_video: bool = True,
     clip_fps: float = CLIP_FPS,
     comfy_preview: bool = False,
@@ -279,14 +280,16 @@ def build_sheet_graph(
         sampler = graph.node(
             "KSamplerSelect", id=f"sampler_{node_id}", sampler_name=str(sampler_name)
         ).out(0)
-        sigmas = graph.node(
-            "BasicScheduler",
-            id=f"sigmas_{node_id}",
-            model=gate,
-            scheduler=str(scheduler),
-            steps=int(steps),
-            denoise=1.0,
-        ).out(0)
+        sampling_sigmas = manual_sigmas
+        if sampling_sigmas is None:
+            sampling_sigmas = graph.node(
+                "BasicScheduler",
+                id=f"sigmas_{node_id}",
+                model=gate,
+                scheduler=str(scheduler),
+                steps=int(steps),
+                denoise=1.0,
+            ).out(0)
         guider = graph.node(
             "BasicGuider",
             id=f"guider_{node_id}",
@@ -302,7 +305,7 @@ def build_sheet_graph(
             noise=noise,
             guider=guider,
             sampler=sampler,
-            sigmas=sigmas,
+            sigmas=sampling_sigmas,
             latent_image=conditioning.out(1),
         )
         frames = graph.node(
@@ -392,6 +395,7 @@ def build_one_pass_graph(
     steps: int = DEFAULT_STEPS,
     sampler_name: str = "res_multistep",
     scheduler: str = "simple",
+    manual_sigmas: Any = None,
     seed: int = 42,
     ref_image_size: str = "match",
     node_id: Any = None,
@@ -476,14 +480,16 @@ def build_one_pass_graph(
     sampler = graph.node(
         "KSamplerSelect", id="onepass_sampler", sampler_name=str(sampler_name)
     ).out(0)
-    sigmas = graph.node(
-        "BasicScheduler",
-        id="onepass_sigmas",
-        model=shifted_model,
-        scheduler=str(scheduler),
-        steps=int(steps),
-        denoise=1.0,
-    ).out(0)
+    sampling_sigmas = manual_sigmas
+    if sampling_sigmas is None:
+        sampling_sigmas = graph.node(
+            "BasicScheduler",
+            id="onepass_sigmas",
+            model=shifted_model,
+            scheduler=str(scheduler),
+            steps=int(steps),
+            denoise=1.0,
+        ).out(0)
     guider = graph.node(
         "BasicGuider", id="onepass_guider", model=shifted_model, conditioning=conditioning.out(0)
     ).out(0)
@@ -494,7 +500,7 @@ def build_one_pass_graph(
         noise=noise,
         guider=guider,
         sampler=sampler,
-        sigmas=sigmas,
+        sigmas=sampling_sigmas,
         latent_image=conditioning.out(1),
     )
     frames = graph.node(
@@ -526,6 +532,7 @@ def build_suite_graph(
     steps: int = DEFAULT_STEPS,
     sampler_name: str = "res_multistep",
     scheduler: str = "simple",
+    manual_sigmas: Any = None,
     cell_size: int | None = None,
     ref_image_size: str = "1024",
     ref_scope: str = "sheet",
@@ -599,6 +606,7 @@ def build_suite_graph(
                 steps=int(steps),
                 sampler_name=str(sampler_name),
                 scheduler=str(scheduler),
+                manual_sigmas=manual_sigmas,
                 seed=int(spec.render.seed),
                 ref_image_size=str(ref_image_size),
                 live_preview=False,
@@ -630,6 +638,7 @@ def build_suite_graph(
                 steps=int(steps),
                 sampler_name=str(sampler_name),
                 scheduler=str(scheduler),
+                manual_sigmas=manual_sigmas,
                 export_video=bool(spec.render.export_video),
                 live_preview=False,
                 comfy_preview=True,
@@ -766,6 +775,15 @@ class MiniMaxH3CharacterSheet(io.ComfyNode):
                     options=list(comfy.samplers.KSampler.SCHEDULERS),
                     default="simple",
                     tooltip="Scheduler used for every cell.",
+                ),
+                io.Sigmas.Input(
+                    "manual_sigmas",
+                    optional=True,
+                    tooltip=(
+                        "Optional SIGMAS schedule used by every sampling pass. Connect "
+                        "ComfyUI's Manual Sigmas here to override BasicScheduler; when "
+                        "unconnected, the steps and scheduler controls are used."
+                    ),
                 ),
                 io.Int.Input(
                     "seed",
@@ -936,6 +954,7 @@ class MiniMaxH3CharacterSheet(io.ComfyNode):
         continuity: str = DEFAULT_CONTINUITY,
         export_video: bool = True,
         single_pass: bool = True,
+        manual_sigmas: Any = None,
     ) -> io.NodeOutput:
         apply_verbose(verbose_logging)
         # A tokenised output name ("%date:hhmmss%") is expanded here, once, so the
@@ -1027,6 +1046,7 @@ class MiniMaxH3CharacterSheet(io.ComfyNode):
                 steps=int(steps),
                 sampler_name=str(sampler_name),
                 scheduler=str(scheduler),
+                manual_sigmas=manual_sigmas,
                 cell_size=int(cell_size) if cell_size else None,
                 ref_image_size=str(ref_image_size),
                 ref_scope=str(ref_scope),
@@ -1130,6 +1150,7 @@ class MiniMaxH3CharacterSheet(io.ComfyNode):
                 steps=int(steps),
                 sampler_name=str(sampler_name),
                 scheduler=str(scheduler),
+                manual_sigmas=manual_sigmas,
                 seed=int(spec.render.seed),
                 ref_image_size=str(ref_image_size),
                 live_preview=bool(spec.render.live_preview),
@@ -1168,6 +1189,7 @@ class MiniMaxH3CharacterSheet(io.ComfyNode):
             steps=int(steps),
             sampler_name=str(sampler_name),
             scheduler=str(scheduler),
+            manual_sigmas=manual_sigmas,
             export_video=bool(spec.render.export_video),
             comfy_preview=bool(spec.render.comfy_preview),
             live_preview=bool(spec.render.live_preview),

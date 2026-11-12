@@ -335,6 +335,27 @@ def test_the_expansion_is_exactly_one_h3_pass():
         assert absent not in types, f"{absent} has no meaning in a one-pass render"
 
 
+def test_manual_sigmas_override_the_one_pass_scheduler():
+    spec = _spec()
+    graph = GraphBuilder()
+    sheet_node.build_one_pass_graph(
+        graph,
+        model="MODEL",
+        clip="CLIP",
+        video_vae="VVAE",
+        audio_vae="AVAE",
+        plan=op.one_pass_plan(spec),
+        refs=reference_plan(spec),
+        payload=grid_payload(spec, name="one-pass sheet"),
+        name="one-pass sheet",
+        manual_sigmas="MANUAL_SIGMAS",
+    )
+    nodes = graph.finalize()
+    sampler = next(node for node in nodes.values() if node["class_type"] == "SamplerCustomAdvanced")
+    assert sampler["inputs"]["sigmas"] == "MANUAL_SIGMAS"
+    assert not any(node["class_type"] == "BasicScheduler" for node in nodes.values())
+
+
 # --------------------------------------------------------------------------- #
 # slicing: the panels come back out, where the prompt asked for them
 # --------------------------------------------------------------------------- #

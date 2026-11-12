@@ -208,7 +208,7 @@ def test_every_board_gets_a_folder_of_its_own():
 # --------------------------------------------------------------------------- #
 # the graph: one queue, one graph per board
 # --------------------------------------------------------------------------- #
-def _suite_graph(spec: ss.SheetSpec):
+def _suite_graph(spec: ss.SheetSpec, **kwargs):
     boards, warnings = suite_mod.suite_boards(spec)
     assert not warnings, warnings
     return sheet_node.build_suite_graph(
@@ -218,6 +218,7 @@ def _suite_graph(spec: ss.SheetSpec):
         video_vae="VVAE",
         audio_vae="AVAE",
         name=str(spec.name),
+        **kwargs,
     )
 
 
@@ -265,6 +266,16 @@ def test_the_boards_do_not_share_a_single_node():
     decodes = {node["inputs"]["samples"][0] for node in expand.values()
                if node["class_type"] == "VAEDecode"}
     assert len(decodes) == 4, "each board decodes its own samples"
+
+
+def test_manual_sigmas_reach_every_board_in_a_suite():
+    expand, _outputs, _lines = _suite_graph(
+        _suite_spec(), manual_sigmas="MANUAL_SIGMAS"
+    )
+    samplers = [node for node in expand.values() if node["class_type"] == "SamplerCustomAdvanced"]
+    assert len(samplers) == 4
+    assert all(node["inputs"]["sigmas"] == "MANUAL_SIGMAS" for node in samplers)
+    assert not any(node["class_type"] == "BasicScheduler" for node in expand.values())
 
 
 def test_the_suite_waits_for_every_board_before_anything_downstream_runs():

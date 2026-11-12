@@ -125,6 +125,9 @@ against your running install and tells you the folder to drop each one in.
 **Steps**: 8 is the default everywhere, because the community TURBO checkpoints bake the
 turbo delta into the weights and their own recipe for `res_multistep` / `simple` is 6-8
 steps. A non-turbo checkpoint wants 20-30 - that is one field in the **Settings** tab.
+To use a custom schedule instead, connect ComfyUI's **Manual Sigmas** output to the node's
+`manual_sigmas` input. It overrides the Scheduler for every sampling pass (including one-pass
+sheets and suites); with the input unconnected, the Steps and Scheduler controls work as usual.
 With a TURBO file, do **not** also load a turbo LoRA, and skip cache/Spectrum nodes on
 reference runs (the 10Eros README's advice: they cost accuracy).
 
