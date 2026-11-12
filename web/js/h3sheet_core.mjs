@@ -94,6 +94,50 @@ export const EXPRESSIONS = [
 ];
 export const PICKS = ["auto", "last", "sharpest", "manual"];
 
+/**
+ * Keep a RefMod export prompt and only the nodes it depends on.
+ * The Builder's image outputs are replaced by the saved sheet folder.
+ */
+export function refmodOnlyPrompt(output, targetIds, sheetDir) {
+    if (!output || typeof output !== "object") throw new Error("could not read the workflow prompt");
+    const targets = new Set(Array.from(targetIds || [], (id) => String(id)));
+    if (!targets.size) throw new Error("no connected RefMod node was selected");
+    const folder = String(sheetDir || "").trim();
+    if (!folder) throw new Error("the sheet folder name is empty");
+
+    const result = {};
+    const include = (id) => {
+        const key = String(id);
+        if (Object.prototype.hasOwnProperty.call(result, key)) return;
+        const node = output[key];
+        if (!node || typeof node !== "object" || !node.inputs || typeof node.inputs !== "object") {
+            throw new Error(`workflow prompt is missing node ${key}`);
+        }
+        let inputs = { ...node.inputs };
+        if (targets.has(key)) {
+            if (node.class_type !== "H3SheetRefMod") {
+                throw new Error(`node ${key} is not an H3 Sheet → RefMod node`);
+            }
+            inputs = { ...inputs };
+            delete inputs.cells;
+            delete inputs.sheet;
+            inputs.sheet_dir = folder;
+        }
+        result[key] = { ...node, inputs };
+        for (const value of Object.values(inputs)) {
+            if (
+                Array.isArray(value)
+                && value.length === 2
+                && Object.prototype.hasOwnProperty.call(output, String(value[0]))
+            ) {
+                include(value[0]);
+            }
+        }
+    };
+    for (const id of targets) include(id);
+    return result;
+}
+
 //: What the pick selector calls each mode. ``manual`` is what a click on a thumbnail records:
 //: it is shown as the cell's mode afterwards, so a hand-picked frame is never a mystery.
 export const PICK_LABELS = {
@@ -446,7 +490,7 @@ export const KNOB_COLUMNS = 3;
  * build makes that a glance instead of an investigation; a test keeps it in step with the
  * import, so bumping one without the other fails the suite rather than confusing a user.
  */
-export const PANEL_BUILD = "h3sheet_v91";
+export const PANEL_BUILD = "h3sheet_v92";
 
 /**
  * The pack's own sample render, shown in a fresh node's reference canvas (see canvasCard).
@@ -4062,7 +4106,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
     const refmodButton = button("Generate RefMod", async () => {
         try {
             await hooks.queueRefmod?.();
-            notify("queued RefMod generation from all chosen cells");
+            notify("queued RefMod generation from the saved images of all chosen cells");
         } catch (error) {
             notify(`could not queue RefMod: ${error.message}`);
         }
@@ -4071,9 +4115,9 @@ export function buildSheetInterface({ state, hooks = {} }) {
     refmodButton.dataset.action = "generate-refmod";
     if (typeof hooks.queueRefmod !== "function") {
         refmodButton.disabled = true;
-        refmodButton.title = "Generates a RefMod from all chosen cells - needs the live node";
+        refmodButton.title = "Generates a RefMod from saved images of all chosen cells - needs the live node";
     } else {
-        refmodButton.title = "Queue the connected RefMod node using all chosen cells";
+        refmodButton.title = "Generate the connected RefMod from saved images, without rendering the sheet again";
     }
     const rebuildButton = button("Re-compose", async () => {
         try {

@@ -240,6 +240,23 @@ ok.push("per-tile face blur: auto -> on -> off, pictures and clips");
 // The sheet's own buttons (rebuild, refresh) ride in the status bar it acts on. "Render" queues
 // through ComfyUI (the wiring's `queue` hook) - it is not a second renderer.
 {
+    const fullGraph = {
+        "1": { class_type: "VAELoader", inputs: { vae_name: "video.vae" } },
+        "2": { class_type: "MiniMaxH3CharacterSheet", inputs: { model: "model" } },
+        "3": { class_type: "AudioSource", inputs: { audio: "voice.wav" } },
+        "8": { class_type: "H3SheetRefMod", inputs: {
+            video_vae: ["1", 0], cells: ["2", 1], sheet: ["2", 0],
+            sheet_dir: ["2", 3], audio: ["3", 0], name: "hero",
+        } },
+    };
+    const exportGraph = core.refmodOnlyPrompt(fullGraph, ["8"], "hero_run");
+    assert.deepEqual(Object.keys(exportGraph).sort(), ["1", "3", "8"],
+        "the export keeps RefMod and its remaining input dependencies, not the sheet renderer");
+    assert.deepEqual(exportGraph["8"].inputs, {
+        video_vae: ["1", 0], sheet_dir: "hero_run", audio: ["3", 0], name: "hero",
+    }, "it drops the image links and reads the saved sheet folder instead");
+    assert.deepEqual(fullGraph["8"].inputs.cells, ["2", 1],
+        "building the RefMod prompt does not mutate the workflow");
     const bar = panel.container.querySelector(".mmx-actionbar");
     assert.ok(bar, "the panel has a status bar");
     assert.equal(bar.lastElementChild.dataset.action, "refresh-results",

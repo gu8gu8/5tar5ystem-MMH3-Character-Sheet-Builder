@@ -1039,6 +1039,33 @@ def test_a_plain_sheet_run_is_not_a_suite(tmp_path, sheets_root, input_root):
     assert "suite:" not in result.report
 
 
+def test_a_plain_sheet_exports_saved_images_without_wired_outputs(tmp_path, sheets_root):
+    pack, calls = fake_pack(tmp_path)
+    folder = make_sheet_folder(sheets_root, "plain", cells=["a", "b"], clips=[])
+    _png(folder / "cells" / "a.png", 10)
+    _png(folder / "cells" / "b.png", 20)
+    _png(folder / "plain-sheet.png", 30)
+    manifest_path = folder / "plain.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["sheetFile"] = "plain-sheet.png"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    result = rx.export_bundle(
+        video_vae="v", sheet_dir=str(folder), name="plain", pack=pack,
+    )
+
+    assert [call["name"] for call in calls["extract"]] == ["plain_views", "plain_sheet"]
+    views = calls["extract"][0]["refs_image"]
+    assert list(views) == ["ref_image_1", "ref_image_2"]
+    assert torch.allclose(views["ref_image_1"], torch.full((1, 8, 8, 3), 10 / 255))
+    assert torch.allclose(views["ref_image_2"], torch.full((1, 8, 8, 3), 20 / 255))
+    assert torch.allclose(
+        calls["extract"][1]["refs_image"]["ref_image_1"],
+        torch.full((1, 8, 8, 3), 30 / 255),
+    )
+    assert result.boards == []
+
+
 def test_a_board_that_never_rendered_is_named_and_skipped(tmp_path, suite_run):
     pack, calls = fake_pack(tmp_path)
     # The second board rendered nothing: its cells and its composite are gone.

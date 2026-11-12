@@ -1568,6 +1568,8 @@ def export_bundle(
 
     if not boards or run is None:
         stills = split_stills(cells)
+        if not stills and folder is not None:
+            stills = board_stills(folder)
         if stills:
             member = build_visual_mod(
                 api,
@@ -1588,6 +1590,8 @@ def export_bundle(
             )
 
         sheet_still = split_stills(sheet, limit=1)
+        if not sheet_still and folder is not None:
+            sheet_still = board_sheet_still(folder)
         if sheet_still:
             member = build_visual_mod(
                 api,

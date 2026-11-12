@@ -27,7 +27,8 @@ import {
     NODE_WIDTH,
     REF_GROUPS,
     enforceWidgetWidth,
-} from "./h3sheet_core.mjs?boot=h3sheet_v91";
+    refmodOnlyPrompt,
+} from "./h3sheet_core.mjs?boot=h3sheet_v92";
 
 const CLASS = "MiniMaxH3CharacterSheet";
 const DOM_WIDGET = "h3_character_sheet_ui";
@@ -152,10 +153,10 @@ async function queueRun(node) {
     return api.queuePrompt(0, { workflow, output });
 }
 
-/** Queue only the RefMod node(s) directly connected to this sheet. */
+/** Queue connected RefMod node(s), sourcing appearance from the saved sheet folder. */
 async function queueRefmod(node) {
-    if (typeof app.queuePrompt !== "function") {
-        throw new Error("this frontend cannot queue a partial prompt");
+    if (typeof app.graphToPrompt !== "function" || typeof api?.queuePrompt !== "function") {
+        throw new Error("this frontend cannot queue a RefMod-only prompt");
     }
     const graph = node.graph;
     const links = graph?.links;
@@ -173,7 +174,9 @@ async function queueRefmod(node) {
     if (!targets.size) {
         throw new Error("connect an H3 Sheet → RefMod node to this sheet first");
     }
-    return app.queuePrompt(0, 1, [...targets]);
+    const { workflow, output } = await app.graphToPrompt();
+    const refmodOutput = refmodOnlyPrompt(output, targets, sheetName(node));
+    return api.queuePrompt(0, { workflow, output: refmodOutput });
 }
 
 /** Wait for ComfyUI's queue to drain, so a re-roll is not appended behind the run it cancelled. */

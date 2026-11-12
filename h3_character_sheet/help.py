@@ -378,6 +378,9 @@ SECTIONS: tuple[HelpSection, ...] = (
             "**Ready-made**: `example_workflows/5tar5ystem MMH3 Character Sheet Builder + "
             "RefMod.json` is all of this wired for you - one Queue renders the sheet, saves "
             "the PNG and writes the bundle. Open it and drop your references in.",
+            "**Export after rendering**: once the sheet's cells exist on disk, *Generate RefMod* "
+            "at the bottom of the Builder exports those saved cell stills and the composite. "
+            "It does not queue the Builder or regenerate the cells.",
             "**Needs** ComfyUI-MiniMaxH3Mod (Luisa's RefMod pack) for the two VAE encoders - "
             "*Load H3 RefMods* and *Apply H3 RefMod* live there. Without it the node stops "
             "with the sentence that says where to clone it; nothing else in this pack cares.",
