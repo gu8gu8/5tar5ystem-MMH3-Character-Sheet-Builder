@@ -1154,6 +1154,14 @@ def test_the_node_maps_its_widgets_onto_the_export(tmp_path, monkeypatch):
     assert seen["voice_cell"] == 2 and seen["subfolder"] == "people"
 
 
+def test_refmod_export_is_not_reused_from_the_execution_cache():
+    import math
+
+    from h3cs.nodes import refmod as node_mod
+
+    assert math.isnan(node_mod.H3SheetRefMod.IS_CHANGED(video_vae="v"))
+
+
 def test_the_node_turns_a_missing_pack_into_a_readable_error(monkeypatch):
     from h3cs.nodes import refmod as node_mod
 

@@ -53,6 +53,11 @@ class H3SheetRefMod(io.ComfyNode):
     """Export the sheet as a RefMod bundle with appearance and voice members."""
 
     @classmethod
+    def IS_CHANGED(cls, **_inputs: Any) -> float:
+        """A save is a side effect; rerun even when this node's inputs are unchanged."""
+        return float("NaN")
+
+    @classmethod
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             node_id="H3SheetRefMod",
