@@ -891,6 +891,7 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
 // --- RefMod cell selection is independent from whether a cell was rendered --------------------
 {
     const savedSelections = [];
+    let queuedSelection = null;
     const selectionState = core.readState(JSON.stringify({
         cells: [{ id: "profile", enabled: true, includeInRefMod: false }],
     }));
@@ -899,6 +900,7 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
         hooks: {
             stateChanged: (payload) => savedSelections.push(payload),
             status: () => {},
+            queueRefmod: async (selection) => { queuedSelection = selection; },
         },
     });
     selectionPanel.renderResults({
@@ -918,6 +920,10 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
         "toggling the checkbox persists the RefMod selection");
     assert.equal(savedSelections.at(-1).cells[0].enabled, true,
         "the separate render-enabled flag is left alone");
+    selectionPanel.container.querySelector('[data-action="generate-refmod"]').click();
+    await tick();
+    assert.deepEqual(queuedSelection, [{ id: "profile", includeInRefMod: true }],
+        "only the visible result cells and their current checkbox values are sent for saving");
     selectionPanel.dispose();
     ok.push("Results: RefMod cell selection is independent from render selection");
 }

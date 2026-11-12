@@ -4107,8 +4107,12 @@ export function buildSheetInterface({ state, hooks = {} }) {
     }
     const refmodButton = button("Generate RefMod", async () => {
         try {
-            await hooks.queueRefmod?.();
-            notify("queued RefMod generation from the saved images of all chosen cells");
+            const selection = [...container.querySelectorAll("[data-refmod-cell]")].map((box) => ({
+                id: box.dataset.refmodCell,
+                includeInRefMod: box.checked,
+            }));
+            await hooks.queueRefmod?.(selection);
+            notify("queued RefMod generation from the saved images of the selected cells");
         } catch (error) {
             notify(`could not queue RefMod: ${error.message}`);
         }

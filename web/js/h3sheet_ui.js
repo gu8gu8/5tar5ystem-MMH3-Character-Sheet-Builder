@@ -154,7 +154,7 @@ async function queueRun(node) {
 }
 
 /** Queue connected RefMod node(s), sourcing appearance from the saved sheet folder. */
-async function queueRefmod(node) {
+async function queueRefmod(node, selection = []) {
     if (typeof app.graphToPrompt !== "function" || typeof api?.queuePrompt !== "function") {
         throw new Error("this frontend cannot queue a RefMod-only prompt");
     }
@@ -175,14 +175,11 @@ async function queueRefmod(node) {
         throw new Error("connect an H3 Sheet → RefMod node to this sheet first");
     }
     const part = node._mmxSheet;
-    const payload = currentPayload(node, part?.state);
-    if (Array.isArray(payload.cells) && payload.cells.some(
-        (cell) => cell && Object.prototype.hasOwnProperty.call(cell, "includeInRefMod"),
-    )) {
+    if (Array.isArray(selection) && selection.length) {
         await sheetAction(node, {
             action: "refmod-selection",
             board: part?.state?.suiteBoard || "",
-            spec: payload,
+            spec: { cells: selection },
         });
     }
     const { workflow, output } = await app.graphToPrompt();
@@ -412,7 +409,7 @@ function mountPanel(node) {
             }
             await app.queuePrompt(0, 1);
         },
-        queueRefmod: () => queueRefmod(node),
+        queueRefmod: (selection) => queueRefmod(node, selection),
         pickFrame: (cellId, index, board) => sheetAction(node, {
             // ``manual`` is the mode a click records: it carries the frame the user chose, and
             // the store keeps it until a rule is chosen for that cell again (see rebuild_sheet).
