@@ -1148,6 +1148,22 @@ def test_refmod_cell_selection_filters_views_but_keeps_composite(tmp_path):
     assert len(composite["refs_image"]) == 1
 
 
+def test_saved_refmod_selection_overrides_stale_spec_cell_ids(tmp_path):
+    pack, calls = fake_pack(tmp_path)
+    folder = _board(tmp_path, "selected", {"front": 10, "profile": 20, "back": 30})
+    manifest_path = folder / "selected.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["spec"] = {"cells": [{"id": "old-plan-cell"}]}
+    manifest["refmodSelection"] = ["profile"]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    rx.export_bundle(video_vae="v", sheet_dir=str(folder), name="selected", pack=pack)
+
+    views = calls["extract"][0]
+    assert list(views["refs_image"]) == ["ref_image_1"]
+    assert round(float(views["refs_image"]["ref_image_1"][0, 0, 0, 0]) * 255) == 20
+
+
 # ---------------------------------------------------------------------- the node
 def test_the_node_maps_its_widgets_onto_the_export(tmp_path, monkeypatch):
     from h3cs.nodes import refmod as node_mod

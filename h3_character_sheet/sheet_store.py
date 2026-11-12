@@ -560,13 +560,22 @@ class SheetStore:
             for item in (cell_specs or [])
             if isinstance(item, dict) and item.get("id")
         }
+        selection = manifest.get("refmodSelection")
+        selected_for_refmod = (
+            {str(cell_id) for cell_id in selection}
+            if isinstance(selection, list)
+            else None
+        )
         for entry in cells:
             meta = spec_cells.get(entry["id"]) or {}
             entry["view"] = str(meta.get("view") or "")
             entry["pose"] = str(meta.get("pose") or "")
             entry["expression"] = str(meta.get("expression") or "")
             entry["caption"] = str(meta.get("caption") or "")
-            entry["includeInRefMod"] = bool(meta.get("includeInRefMod", True))
+            if selected_for_refmod is not None:
+                entry["includeInRefMod"] = entry["id"] in selected_for_refmod
+            else:
+                entry["includeInRefMod"] = bool(meta.get("includeInRefMod", True))
 
         sheet_exists = self.sheet_path.is_file()
         one_pass = manifest.get("onePass") if isinstance(manifest.get("onePass"), dict) else {}

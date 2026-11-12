@@ -255,6 +255,29 @@ def test_refmod_selection_updates_only_the_saved_cells_flag(tmp_path, monkeypatc
     assert answer == {"ok": True, "action": "refmod-selection", "updated": 2}
     assert [cell["includeInRefMod"] for cell in saved["spec"]["cells"]] == [True, False]
     assert [cell["view"] for cell in saved["spec"]["cells"]] == ["front", "back"]
+    assert saved["refmodSelection"] == ["front"]
+
+
+def test_refmod_selection_does_not_fail_on_stale_spec_cell_ids(tmp_path, monkeypatch):
+    root = tmp_path / "minimax_sheets"
+    monkeypatch.setattr(store_mod, "sheets_root", lambda: root)
+    store = store_mod.SheetStore("plain")
+    store.write_manifest({
+        "spec": {"cells": [{"id": "old-plan-cell"}]},
+        "cells": {"front": {"index": 0}, "back": {"index": 0}},
+    })
+
+    answer = _call({
+        "action": "refmod-selection",
+        "name": "plain",
+        "spec": {"cells": [
+            {"id": "front", "includeInRefMod": True},
+            {"id": "back", "includeInRefMod": False},
+        ]},
+    })
+
+    assert answer == {"ok": True, "action": "refmod-selection", "updated": 2}
+    assert store.read_manifest()["refmodSelection"] == ["front"]
 
 
 def test_a_normal_sheet_run_has_no_boards(tmp_path, monkeypatch):

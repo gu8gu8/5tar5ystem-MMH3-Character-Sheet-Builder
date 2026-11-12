@@ -384,22 +384,16 @@ async def sheet_action(request):
             manifest = store.read_manifest()
             manifest_spec = manifest.get("spec")
             manifest_cells = manifest_spec.get("cells") if isinstance(manifest_spec, dict) else None
-            if not isinstance(manifest_cells, list):
-                return _json_error("This sheet has no cell spec to update.", status=409)
-            found = set()
-            for cell in manifest_cells:
-                if isinstance(cell, dict) and str(cell.get("id") or "") in requested:
-                    cell["includeInRefMod"] = requested[str(cell["id"])]
-                    found.add(str(cell["id"]))
-            missing = sorted(set(requested) - found)
-            if missing:
-                return _json_error(
-                    f"These cells are not in the saved sheet: {', '.join(missing)}.",
-                    status=409,
-                )
+            if isinstance(manifest_cells, list):
+                for cell in manifest_cells:
+                    if isinstance(cell, dict) and str(cell.get("id") or "") in requested:
+                        cell["includeInRefMod"] = requested[str(cell["id"])]
+            manifest["refmodSelection"] = [
+                cell_id for cell_id, included in requested.items() if included
+            ]
             store.write_manifest(manifest)
             return web.json_response(
-                {"ok": True, "action": action, "updated": len(found)}
+                {"ok": True, "action": action, "updated": len(requested)}
             )
 
         if action == "delete":

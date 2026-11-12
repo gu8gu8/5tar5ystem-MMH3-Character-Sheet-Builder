@@ -484,7 +484,11 @@ def refmod_cell_selection(folder: Path | str | None) -> set[str] | None:
     """Cell ids included in the RefMod, or ``None`` for manifests predating selection."""
     if folder is None:
         return None
-    spec = sheet_manifest(folder).get("spec")
+    manifest = sheet_manifest(folder)
+    selection = manifest.get("refmodSelection")
+    if isinstance(selection, list):
+        return {str(cell_id) for cell_id in selection}
+    spec = manifest.get("spec")
     cells = spec.get("cells") if isinstance(spec, dict) else None
     if not isinstance(cells, list):
         return None
