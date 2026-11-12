@@ -5786,7 +5786,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
             slot.role = value;
             persist();
         }, "mmx-input mmx-role mmx-sheet-ref-role");
-        role.title = "What this reference is for (goes into every cell prompt)";
+        role.title = "What this reference is for; per-cell picture loading uses each view's keyword list";
 
         // The role box gets the whole row: it is the one thing here that is typed into,
         // so nothing sits beside it (the blur toggle is on the picture instead).
@@ -5985,13 +5985,13 @@ export function buildSheetInterface({ state, hooks = {} }) {
             element("div", { textContent: "Suppress", className: "mmx-muted" }),
             negativeBox,
             element("div", {
-                textContent: "Name the attribute in each role - face, hair, clothing, body shape - and "
-                    + "every cell takes it from that picture alone.",
+                textContent: "Picture keywords: face, hair, body, breasts, nipple, genitals, butt. "
+                    + "Each cell loads pictures matching its view and uses them for those attributes.",
                 className: "mmx-muted",
-                title: "Roles decide which picture supplies what: name the attribute in each role "
-                    + "(face, hair, glasses / body, clothes). Every cell prompt then tells H3 to take "
-                    + "that from its picture and not from the others, and a picture whose role does "
-                    + "not mention the face can be blurred instead (see the tile badges).",
+                title: "Use these role keywords for picture filtering: face, hair, body, breasts, "
+                    + "nipple, genitals, butt. A picture loads for a cell if its role matches at "
+                    + "least one keyword allowed for that view. The cell prompt also tells H3 which "
+                    + "picture supplies each attribute.",
             }, { marginTop: "4px" }),
         );
         card.append(head, rows);

@@ -316,7 +316,10 @@ SECTIONS: tuple[HelpSection, ...] = (
         id="faceblur",
         title="Face blur (the face swap trick)",
         intro=(
-            "H3 reads every reference picture at once and has no per-reference weight. A "
+            "H3 reads every reference wired to a cell at once and has no per-reference weight. "
+            "In per-cell mode, each view has a strict keyword allowlist for pictures; a picture "
+            "is loaded only when its role matches one of that view's keywords. Use \"every cell\" "
+            "to send all references anyway. A "
             "prompt can ask for \"clothing from picture 2\", but it cannot stop the model "
             "seeing that picture 2 is a different person - and a full-body outfit photo is "
             "a full second identity. Blurring that face out of the pixels is the only fix "

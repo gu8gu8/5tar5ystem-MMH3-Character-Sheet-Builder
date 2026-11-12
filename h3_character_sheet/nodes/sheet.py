@@ -145,19 +145,43 @@ def build_sheet_graph(
         shift_audio=float(shift_audio),
     ).out(0)
 
-    # The run's loaders, built once. `all_inputs` is every reference under the run's
-    # own numbering; `by_source` maps a slot id of that full set to its node output, so
-    # a cell can wire the subset it receives (see sheet_spec.cell_references) under its
-    # own 1..n numbering - which is what H3 numbers in the prompt.
+    # Build loaders only for references used by at least one cell. Each cell wires its
+    # own subset (see sheet_spec.cell_references) under the compact numbering H3 sees.
+    cell_plans = [item.get("ref_plan") for item in work_items]
+    has_cell_plans = all(
+        isinstance(plan, dict)
+        and any(group in plan for group in ("pictures", "videos", "audios"))
+        for plan in cell_plans
+    )
+    used_sources: set[str] = set()
+    if has_cell_plans:
+        for plan in cell_plans:
+            for group in ("pictures", "videos", "audios"):
+                for entry in plan.get(group) or []:
+                    for key in ("source_slot_id", "source_audio_slot_id"):
+                        source = entry.get(key)
+                        if source:
+                            used_sources.add(str(source))
+
+    def selected_refs(group: str) -> list[dict[str, Any]]:
+        entries = refs.get(group, [])
+        if not has_cell_plans:
+            return entries
+        return [
+            item for item in entries
+            if str(item.get("slot_id") or item["slot"]) in used_sources
+            or str(item.get("audio_slot_id") or item.get("audio_slot") or "") in used_sources
+        ]
+
     all_inputs: dict[str, Any] = {}
     by_source: dict[str, Any] = {}
-    for item in refs.get("pictures", []):
+    for item in selected_refs("pictures"):
         output = graph.node(
             "LoadImage", id=f"ref_image_{item.get('slot_id') or item['slot']}", image=item["file"]
         ).out(0)
         all_inputs[item["slot"]] = output
         by_source[item["slot_id"]] = output
-    for item in refs.get("videos", []):
+    for item in selected_refs("videos"):
         video = graph.node(
             "LoadVideo", id=f"ref_video_src_{item.get('slot_id') or item['slot']}", file=item["file"]
         ).out(0)
@@ -168,7 +192,7 @@ def build_sheet_graph(
         all_inputs[item["audio_slot"]] = components.out(1)
         by_source[item["slot_id"]] = components.out(0)
         by_source[item.get("audio_slot_id") or item["audio_slot"]] = components.out(1)
-    for item in refs.get("audios", []):
+    for item in selected_refs("audios"):
         output = graph.node(
             "LoadAudio", id=f"ref_audio_{item.get('slot_id') or item['slot']}", audio=item["file"]
         ).out(0)
@@ -805,10 +829,10 @@ class MiniMaxH3CharacterSheet(io.ComfyNode):
                     options=["per framing", "every cell"],
                     default=DEFAULT_REF_SCOPE,
                     tooltip=(
-                        "All enabled pictures go to every cell in the same order, so "
-                        "<Picture N> always identifies the same image. 'Per framing' "
-                        "filters video/audio references whose whole role is hidden by "
-                        "the shot; 'every cell' sends those videos to every cell too."
+                        "'Per framing' loads pictures only when their role matches a "
+                        "keyword assigned to the cell's framing, and filters video/audio "
+                        "roles hidden by the shot. Tags are numbered per cell. "
+                        "'Every cell' sends all enabled references to every cell."
                     ),
                 ),
                 # Appended last as well: another render policy, so inserting it mid-list

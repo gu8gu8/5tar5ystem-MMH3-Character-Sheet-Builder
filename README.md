@@ -29,9 +29,15 @@ frame picker and the compositor.
 
 **References with roles.** Drop up to 9 pictures, 3 videos (with their soundtracks) and 3 audios;
 each one gets a free-text role - "face and hair", "body and clothes", "this voice". The role text
-is what the prompt says. Every enabled picture is listed in every generated cell prompt and wired
-to every cell in its original order, so `<Picture N>` always identifies the same image. The `per framing` reference scope filters videos whose role is hidden by the view; `every cell`
-sends them to every cell too.
+is what the prompt says. In per-cell mode, the `per framing` scope filters pictures by a strict
+keyword allowlist for each view: a face cell accepts only roles matching `face`, while a portrait
+accepts `face`, `body` or `breasts`. A role with several categories is included if any one matches;
+a picture without a matching role is excluded. Video and audio references keep their framing
+filter. The remaining references are numbered per cell, and only references used by at least one
+cell get loader nodes. `every cell` disables these filters and sends all enabled references to
+every cell. The picture keyword vocabulary is `face`, `hair`, `body`, `breasts`, `nipple`,
+`genitals` and `butt`. One-pass mode draws the whole sheet in one render and uses the full reference
+set.
 
 **A matrix of cells.** 27 views (face close-up, straight-on and side portraits, front, 90 deg
 profile, back, 45 deg views, over-shoulder, hands, legs...), 13 poses (neutral, A/T-pose, sitting, kneeling, walking,

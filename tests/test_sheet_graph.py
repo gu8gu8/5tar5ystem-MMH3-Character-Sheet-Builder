@@ -156,8 +156,7 @@ def test_no_director_nodes_or_imports_anywhere_in_the_pack():
 # --------------------------------------------------------------------------- #
 # per-cell references
 # --------------------------------------------------------------------------- #
-def test_every_picture_is_wired_in_source_order_to_each_cell():
-    """All cell prompts can refer to all images using one stable Picture numbering."""
+def test_each_cell_is_wired_only_with_references_visible_in_its_framing():
     spec = _spec(
         refs={
             "pictures": [
@@ -174,22 +173,19 @@ def test_every_picture_is_wired_in_source_order_to_each_cell():
     wired = _wired_references(graph)
     assert _for_cell(wired, "close") == {
         "ref_images.ref_image_0": "face.png",
-        "ref_images.ref_image_1": "body.png",
-    }, "a face close-up receives both pictures in their source order"
+    }, "a face close-up does not receive the clothing/body reference"
     assert _for_cell(wired, "whole") == {
         "ref_images.ref_image_0": "face.png",
         "ref_images.ref_image_1": "body.png",
-    }, "a full body cell still gets both"
+    }, "a full-body cell receives both references in source order"
 
     nodes = graph.finalize()
     close_prompt = _for_cell(nodes, "close")["inputs"]["prompt"]
     assert "<Picture 1>" in close_prompt
-    assert "<Picture 2>" in close_prompt, "every wired picture is listed in every prompt"
     assert "<Picture 2>" in _for_cell(nodes, "whole")["inputs"]["prompt"]
 
 
-def test_picture_identifiers_never_change_when_reference_roles_are_filtered():
-    """A hidden role does not remove its image or renumber later images."""
+def test_cell_picture_tags_are_compact_after_role_filtering():
     spec = _spec(
         refs={
             "pictures": [
@@ -201,12 +197,34 @@ def test_picture_identifiers_never_change_when_reference_roles_are_filtered():
     )
     graph, _ = _build(spec)
     assert _for_cell(_wired_references(graph), "close") == {
-        "ref_images.ref_image_0": "body.png",
-        "ref_images.ref_image_1": "face.png",
+        "ref_images.ref_image_0": "face.png",
     }
     prompt = _for_cell(graph.finalize(), "close")["inputs"]["prompt"]
-    assert "<Picture 1> is the clothing and body reference." in prompt
-    assert "Use <Picture 2> for the face, the glasses and the hair." in prompt
+    assert "<Picture 1> is the sole source of the face and the hair." in prompt
+    assert "<Picture 2>" not in prompt
+
+
+def test_unused_picture_loaders_are_not_built():
+    spec = _spec(
+        refs={
+            "pictures": [
+                {"imageFile": "face.png", "role": "face and hair"},
+                {"imageFile": "butt.png", "role": "butt"},
+            ]
+        },
+        cells=[{"id": "close", "view": "face"}],
+    )
+    graph, _ = _build(spec)
+    nodes = graph.finalize()
+    loaders = [
+        node["inputs"]["image"]
+        for node in nodes.values()
+        if node["class_type"] == "LoadImage"
+    ]
+    assert loaders == ["face.png"]
+    assert _for_cell(_wired_references(graph), "close") == {
+        "ref_images.ref_image_0": "face.png",
+    }
 
 
 def test_the_scope_widget_can_hand_every_reference_to_every_cell():

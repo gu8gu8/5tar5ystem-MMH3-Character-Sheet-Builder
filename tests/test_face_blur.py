@@ -877,7 +877,7 @@ def test_a_panel_can_take_its_face_from_a_reference_the_rule_would_blur():
 
 
 def test_the_panel_face_reference_keeps_its_picture_number_and_gains_the_face_role():
-    """Choosing a face tile never reorders the stable picture list."""
+    """The selected face stays wired even when its original role is out of frame."""
     spec = ss.parse_sheet_spec(
         {
             "refs": {"pictures": [
@@ -885,17 +885,17 @@ def test_the_panel_face_reference_keeps_its_picture_number_and_gains_the_face_ro
                 {"imageFile": "outfit.jpg", "role": "body and clothes"},
             ]},
             "cells": [
-                {"id": "c0", "view": "portrait"},
-                {"id": "c1", "view": "portrait", "faceRef": "pictures:1"},
+                {"id": "c0", "view": "face"},
+                {"id": "c1", "view": "face", "faceRef": "pictures:1"},
             ],
         }
     )
     by_id = {cell.id: cell for cell in spec.cells}
     plain = ss.cell_references(spec, by_id["c0"])
-    assert [ref.file for ref in plain] == ["identity.jpg", "outfit.jpg"], "the default order"
+    assert [ref.file for ref in plain] == ["identity.jpg"]
     own = ss.cell_references(spec, by_id["c1"])
     assert [ref.file for ref in own] == ["identity.jpg", "outfit.jpg"], (
-        "the panel's face choice does not reorder the stable picture list"
+        "the panel's face choice overrides framing filtering without changing source order"
     )
     assert "face" in own[1].role, "the selected picture claims the face"
     assert ss.identity_reference(own) is own[1], "the identity lines name the selected picture"

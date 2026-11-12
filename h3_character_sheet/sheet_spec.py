@@ -891,7 +891,7 @@ class SheetRef:
     #: ``"on"`` or ``"off"``. The panel writes it; the node blurs the file before it
     #: is wired, so the model never sees the face of a non-identity reference.
     blur_face: str = DEFAULT_BLUR_MODE
-    #: A per-cell identity choice. It never changes this reference's tag index.
+    #: A per-cell identity choice. The tag is assigned from the references this cell receives.
     preferred_identity: bool = False
     #: Areas painted by hand, as normalized strokes (see :func:`parse_blur_paint`). A
     #: painted area is blurred *in addition to* anything the mode blurs - with the mode
@@ -947,9 +947,9 @@ class SheetCell:
     aspect: str = ""
     enabled: bool = True
     #: Which reference supplies THIS cell's likeness, as ``"<group>:<slot>"`` (``"pictures:1"``
-    #: = the second picture). Empty means "whoever claims the face", which is the run-wide
-    #: answer. It is the per-panel half of the sheet: the ticks build the default cross
-    #: product, and a panel can then take its face from another picture.
+    #: = the second picture in the enabled source list). Empty means "whoever claims the face",
+    #: which is resolved from the references this cell receives. It is the per-panel half of
+    #: the sheet: a panel can take its face from another picture.
     face_ref: str = ""
     place: dict[str, int] = field(default_factory=dict)
     #: Latent continuation for this cell: ``inherit`` (the render setting), ``on`` or
@@ -2070,7 +2070,7 @@ ATTRIBUTE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "intimate",
         (
-            "butt", "ass", "glute", "crotch", "pubic", "vulva", "vagina", "labia",
+            "butt", "ass", "glute", "genital", "crotch", "pubic", "vulva", "vagina", "labia",
             "mons", "pussy", "penis", "cock", "dick", "scrotum", "testicle", "anus",
         ),
     ),
@@ -2138,9 +2138,40 @@ ATTRIBUTES_HIDDEN_BY_VIEW: dict[str, tuple[str, ...]] = {
     "portrait-profile": ("intimate", "legwear", "shoes"),
     # A crop of the hands shows no body, but the sleeves are in frame - so clothing stays.
     "hands": ("body", "breasts", "intimate"),
-    # Waist down: no face in the shot, and the guard in cell_references keeps the
-    # identity reference wired even when its only claim is the face.
+    # Waist down: no face in shot. Picture roles use the explicit legs allowlist below.
     "legs": ("face", "eyes", "glasses"),
+}
+
+# Picture roles are filtered by these explicit per-view allowlists. A role is kept
+# when it matches at least one allowed role keyword.
+CELL_REFERENCE_KEYWORDS: dict[str, frozenset[str]] = {
+    "face": frozenset(("face",)),
+    "portrait": frozenset(("face", "body", "breasts")),
+    "portrait-three-quarter": frozenset(("face", "body", "breasts", "hair", "nipple")),
+    "portrait-profile": frozenset(("face", "body", "breasts", "nipple", "hair")),
+    "face-three-quarter": frozenset(("face", "hair")),
+    "face-profile": frozenset(("face", "hair")),
+    "front": frozenset(("face", "hair", "body", "breasts", "genitals")),
+    "three-quarter": frozenset(("face", "hair", "body", "breasts", "genitals")),
+    "profile": frozenset(("face", "hair", "body", "breasts", "genitals")),
+    "three-quarter-back": frozenset(("face", "hair", "body", "breasts", "genitals", "butt")),
+    "back": frozenset(("hair", "body", "butt")),
+    "high-angle": frozenset(("face", "hair", "body", "breasts", "genitals")),
+    "low-angle": frozenset(("face", "hair", "body", "breasts", "genitals")),
+    "over-shoulder": frozenset(("face", "hair", "body", "breasts", "genitals")),
+    "head-back": frozenset(("face", "hair")),
+    "eyes": frozenset(("face",)),
+    "hands": frozenset(("body",)),
+    "legs": frozenset(("body", "genitals")),
+    "mouth": frozenset(("face",)),
+    "feet": frozenset(("body",)),
+    "breasts": frozenset(("breasts", "nipple")),
+    "breasts-side": frozenset(("breasts", "nipple")),
+    "nipple": frozenset(("breasts", "nipple")),
+    "nipple-side": frozenset(("breasts", "nipple")),
+    "groin": frozenset(("body", "genitals")),
+    "groin-macro": frozenset(("genitals",)),
+    "butt": frozenset(("body", "butt")),
 }
 
 #: The angles a front-facing reference picture CANNOT show, and how to name them. A side or
@@ -2243,6 +2274,34 @@ def reference_attributes(role: str) -> set[str]:
     return found
 
 
+def reference_role_keywords(role: str) -> set[str]:
+    """Specific picture keywords used by per-view allowlists.
+
+    The prompt vocabulary groups nipples with breasts and buttocks with intimate
+    anatomy. For loading decisions, keep those user-visible keywords distinct.
+    """
+    words = [word.strip(".,;:/()[]-_").lower() for word in str(role or "").split()]
+    found: set[str] = set()
+    for word in words:
+        if not word:
+            continue
+        for attribute, keywords in ATTRIBUTE_KEYWORDS:
+            matched = next(
+                (keyword for keyword in keywords if _matches_keyword(word, keyword)),
+                None,
+            )
+            if matched is None:
+                continue
+            if attribute == "breasts":
+                found.add("nipple" if matched in ("nipple", "areola") else "breasts")
+            elif attribute == "intimate":
+                found.add("butt" if matched in ("butt", "ass", "glute") else "genitals")
+            else:
+                found.add(attribute)
+            break
+    return found
+
+
 def _join(items: list[str]) -> str:
     """"a, b and c" - prompts read better than a bare comma list."""
     if len(items) == 1:
@@ -2257,11 +2316,9 @@ FACE_REF_KINDS = {"pictures": "picture", "videos": "video", "audios": "audio"}
 def cell_face_reference(cell: SheetCell, refs: Iterable[SheetRef]) -> SheetRef | None:
     """The reference a CELL names as its likeness source (``cell.face_ref``), or ``None``.
 
-    ``"pictures:1"`` = the picture the prompt calls ``<Picture 2>`` - the number is the TAG
-    number, i.e. the position among the ENABLED references of that kind, which is the number
-    the user sees on the tile badge. It therefore shifts when a reference is unchecked, in
-    exactly the way ``<Picture N>`` in a prompt shifts; the panel's own badge tells the user
-    which number is which.
+    ``"pictures:1"`` selects the second picture in the enabled source list (the panel's tile
+    badge number minus one). The cell's prompt tag is assigned after framing filters its
+    references, so it may differ from the source-list number.
 
     A cell can outlive the reference it points at (the tile was removed, or the slot was
     cleared), which is why this is a lookup and not a promise: a name that matches nothing
@@ -2481,54 +2538,57 @@ def cell_references(
 ) -> list[SheetRef]:
     """The references THIS cell should receive.
 
-    Every enabled picture is wired to every cell, in source order. H3 numbers only the
-    pictures it receives, so filtering or moving one would make ``<Picture N>`` name a
-    different image in different cells. The stable list is also spelled out in every
-    generated cell prompt. Non-picture references still follow the selected framing scope.
-
-    A reference that claims nothing stays: its purpose is unknown, so dropping it would
-    be a silent change. If the filter would drop everything, the first enabled
-    reference is kept so the person is still conditioned. ``scope="every cell"``
-    turns the non-picture filter off and hands every enabled reference to every cell.
+    Pictures are kept only when their role claims at least one of the cell's configured
+    keywords (:data:`CELL_REFERENCE_KEYWORDS`). A picture with no matching role is left
+    out. Videos and audios retain the existing framing filter. Remaining references keep
+    source order and get compact per-cell tags for the prompt and graph wiring.
+    ``scope="every cell"`` disables both filters.
 
     A cell that names its own face reference (``cell.face_ref``, the panel's drag-and-drop)
-    gives it the face attribute without changing its stable image number. See
-    :func:`cell_face_reference`.
+    gives it the face attribute. Picture references still have to match the cell's
+    allowlist; see :func:`cell_face_reference`.
     """
     enabled = [ref for ref in spec.refs if ref.enabled]
     every_cell = str(scope or "").strip().lower() == "every cell"
     hidden = set(attributes_hidden_by(cell.view))
     kept: list[SheetRef] = []
     for ref in enabled:
-        if ref.kind == "picture" or every_cell:
+        if every_cell:
             kept.append(ref)
             continue
-        claimed = reference_attributes(ref.role)
-        if claimed and claimed <= hidden:
-            continue
-        kept.append(ref)
-    if not kept:
-        kept = enabled[:1]
-    # A tile dropped on this panel is given the face attribute without moving its picture slot:
-    # every cell must continue to use the same <Picture N> for the same image.
+        if ref.kind == "picture":
+            allowed = CELL_REFERENCE_KEYWORDS.get(
+                str(cell.view or "").strip().lower(), frozenset()
+            )
+            if reference_role_keywords(ref.role) & allowed:
+                kept.append(ref)
+        else:
+            claimed = reference_attributes(ref.role)
+            if not claimed or not claimed <= hidden:
+                kept.append(ref)
+    # An explicit per-cell identity choice overrides role filtering. Rebuild from the
+    # enabled source order so the selected reference is added without reordering others.
     face = cell_face_reference(cell, enabled)
     if face is not None:
         role = str(face.role or "").strip()
         if "face" not in reference_attributes(role):
             role = f"{role}, face".strip(" ,") if role else "face"
         face = replace(face, role=role, preferred_identity=True)
-        if face.kind == "picture":
+        allowed = CELL_REFERENCE_KEYWORDS.get(
+            str(cell.view or "").strip().lower(), frozenset()
+        )
+        face_is_allowed = (
+            every_cell
+            or face.kind != "picture"
+            or bool(reference_role_keywords(face.role) & allowed)
+        )
+        if face_is_allowed:
+            kept_sources = {(ref.kind, ref.source) for ref in kept}
+            kept_sources.add((face.kind, face.source))
             kept = [
                 face if ref.kind == face.kind and ref.source == face.source else ref
-                for ref in kept
-            ]
-        else:
-            kept = [
-                face,
-                *(
-                    ref for ref in kept
-                    if not (ref.kind == face.kind and ref.source == face.source)
-                ),
+                for ref in enabled
+                if (ref.kind, ref.source) in kept_sources
             ]
 
     counters: dict[str, int] = {}
@@ -2536,8 +2596,6 @@ def cell_references(
     for ref in kept:
         index = counters.get(ref.kind, 0)
         counters[ref.kind] = index + 1
-        # Pictures are complete and ordered, so their indices remain fixed across cells.
-        # Filtered video/audio slots retain the existing compact per-cell numbering.
         out.append(ref if ref.index == index else replace(ref, index=index))
     return out
 
@@ -3132,15 +3190,16 @@ def build_cell_prompt(spec: SheetSpec, cell: SheetCell, *, refs: list[SheetRef] 
     Order matters for H3: the user's global description first (identity), then the
     reference legend, then the framing/pose/expression instructions for THIS cell,
     then any extra text the user typed on the cell. Reference tags are always
-    spelled out so the official tag parser matches them. Every enabled picture is included
-    in ``refs``; non-picture refs may be filtered by scope (see :func:`cell_references`).
+    spelled out so the official tag parser matches them. ``refs`` is the set the cell
+    actually receives (see :func:`cell_references`).
     Explicit cell prompts are preserved, with a list appended only for picture tags they
     do not already contain.
     """
     if cell.prompt_override.strip():
+        source = refs if refs is not None else spec.pictures
         missing = [
-            ref for ref in spec.pictures
-            if ref.enabled and ref.tag not in cell.prompt_override
+            ref for ref in source
+            if ref.enabled and ref.kind == "picture" and ref.tag not in cell.prompt_override
         ]
         if missing:
             labels = []

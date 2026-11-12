@@ -100,10 +100,9 @@ def cell_work_items(
     """One work item per enabled cell, in sheet order (cell 0 is the hero).
 
     ``cell_size`` is the cell's SHORT edge; each cell's own ``aspect`` (else the
-    sheet's ``render.cell_aspect``) decides the long edge. Each item carries every
-    enabled picture in stable source order, plus the non-picture references selected
-    for that cell (see ``sheet_spec.cell_references``), so the prompt and wiring use
-    the same tags.
+    sheet's ``render.cell_aspect``) decides the long edge. Each item carries the
+    references selected for that cell (see ``sheet_spec.cell_references``), so the
+    prompt and wiring use the same tags.
 
     ``continuity`` is how many frames of the previous cell this one continues from
     (``0`` = independent; see ``sheet_spec.continuity_plan``). It is computed here, once
@@ -158,9 +157,8 @@ def reference_plan(
     soundtrack is the same index, exactly how the official node pairs them.
 
     ``refs`` is the references one cell receives (``sheet_spec.cell_references``).
-    Picture slots are complete and source-ordered, so their H3 numbers are identical
-    across cells; filtered video/audio slots are numbered from the subset. ``source_slot_id``
-    names the loader node built for the run's FULL set.
+    Slots are numbered from that cell's selected subset. ``source_slot_id`` points
+    back to the shared loader for the reference's position in the full source set.
     """
     source = list(refs) if refs is not None else [r for r in spec.refs if r.enabled]
     plan: dict[str, list[dict[str, Any]]] = {"pictures": [], "videos": [], "audios": []}

@@ -65,9 +65,9 @@ def test_plan_action_returns_each_cells_prompt_and_its_references():
     assert [cell["id"] for cell in answer["cells"]] == ["close", "whole"]
 
     close, whole = answer["cells"]
-    assert close["refs"] == ["<Picture 1>", "<Picture 2>"]
+    assert close["refs"] == ["<Picture 1>"]
     assert "<Picture 1>" in close["prompt"]
-    assert "<Picture 2>" in close["prompt"]
+    assert "<Picture 2>" not in close["prompt"]
     assert "head, face, hair" in close["prompt"]
 
     assert whole["refs"] == ["<Picture 1>", "<Picture 2>"]
@@ -101,7 +101,7 @@ def test_plan_reports_which_references_will_be_blurred():
     """
     answer = _call({"action": "plan", "spec": PAYLOAD})
     close, whole = answer["cells"]
-    assert close["blurred"] == ["<Picture 2>"], "every cell receives the blurred outfit picture"
+    assert close["blurred"] == [], "the face cell does not receive the outfit picture"
     assert whole["blurred"] == ["<Picture 2>"], "the outfit picture is the one blurred"
 
 

@@ -601,8 +601,7 @@ def test_an_anatomy_reference_owns_the_body_and_must_not_supply_the_face():
     assert ss.blur_face_decisions(spec)[("picture", 1)] == "blur"
 
 
-def test_every_cell_lists_all_pictures_without_renumbering_hidden_roles():
-    """A framing may hide an attribute, but it cannot change a picture's stable tag."""
+def test_framing_omits_pictures_whose_entire_role_is_out_of_shot():
     spec = ss.parse_sheet_spec(
         {
             "refs": {
@@ -619,18 +618,82 @@ def test_every_cell_lists_all_pictures_without_renumbering_hidden_roles():
         }
     )
     by_id = {cell.id: cell for cell in spec.enabled_cells}
-    expected = [("face.jpg", "<Picture 1>"), ("nude.jpg", "<Picture 2>")]
-    for view in ("face", "portrait", "front"):
-        cell = by_id[view]
-        refs = ss.cell_references(spec, cell)
-        assert [(ref.file, ref.tag) for ref in refs] == expected
-        prompt = ss.build_cell_prompt(spec, cell, refs=refs)
-        legend = prompt.split("\n\n", 1)[0]
-        assert "<Picture 1>" in legend
-        assert "<Picture 2>" in legend
+    face_refs = ss.cell_references(spec, by_id["face"])
+    assert [(ref.file, ref.tag) for ref in face_refs] == [("face.jpg", "<Picture 1>")]
+    assert "<Picture 2>" not in ss.build_cell_prompt(spec, by_id["face"], refs=face_refs)
+
+    portrait_refs = ss.cell_references(spec, by_id["portrait"])
+    assert [(ref.file, ref.tag) for ref in portrait_refs] == [
+        ("face.jpg", "<Picture 1>"),
+        ("nude.jpg", "<Picture 2>"),
+    ], "a partly visible role remains available to a portrait"
+
+    front_refs = ss.cell_references(spec, by_id["front"])
+    assert [(ref.file, ref.tag) for ref in front_refs] == [
+        ("face.jpg", "<Picture 1>"),
+        ("nude.jpg", "<Picture 2>"),
+    ]
 
 
-def test_nipple_cell_keeps_every_imported_picture_number():
+def test_per_view_picture_keyword_allowlists_select_the_configured_roles():
+    roles = ["face", "hair", "body", "breasts", "nipple", "genitals", "butt"]
+    spec = ss.parse_sheet_spec(
+        {
+            "refs": {
+                "pictures": [
+                    {"imageFile": f"{role}.jpg", "role": role}
+                    for role in roles
+                ]
+            },
+            "cells": [
+                {"id": view, "view": view}
+                for view in (
+                    "face", "portrait", "portrait-three-quarter", "portrait-profile",
+                    "face-three-quarter", "face-profile", "front", "three-quarter",
+                    "profile", "three-quarter-back", "back", "high-angle", "low-angle",
+                    "over-shoulder", "head-back", "eyes", "hands", "legs", "mouth",
+                    "feet", "breasts", "breasts-side", "nipple", "nipple-side",
+                    "groin", "groin-macro", "butt",
+                )
+            ],
+        }
+    )
+    expected = {
+        "face": ["face"],
+        "portrait": ["face", "body", "breasts"],
+        "portrait-three-quarter": ["face", "hair", "body", "breasts", "nipple"],
+        "portrait-profile": ["face", "hair", "body", "breasts", "nipple"],
+        "face-three-quarter": ["face", "hair"],
+        "face-profile": ["face", "hair"],
+        "front": ["face", "hair", "body", "breasts", "genitals"],
+        "three-quarter": ["face", "hair", "body", "breasts", "genitals"],
+        "profile": ["face", "hair", "body", "breasts", "genitals"],
+        "three-quarter-back": ["face", "hair", "body", "breasts", "genitals", "butt"],
+        "back": ["hair", "body", "butt"],
+        "high-angle": ["face", "hair", "body", "breasts", "genitals"],
+        "low-angle": ["face", "hair", "body", "breasts", "genitals"],
+        "over-shoulder": ["face", "hair", "body", "breasts", "genitals"],
+        "head-back": ["face", "hair"],
+        "eyes": ["face"],
+        "hands": ["body"],
+        "legs": ["body", "genitals"],
+        "mouth": ["face"],
+        "feet": ["body"],
+        "breasts": ["breasts", "nipple"],
+        "breasts-side": ["breasts", "nipple"],
+        "nipple": ["breasts", "nipple"],
+        "nipple-side": ["breasts", "nipple"],
+        "groin": ["body", "genitals"],
+        "groin-macro": ["genitals"],
+        "butt": ["body", "butt"],
+    }
+
+    for cell in spec.enabled_cells:
+        selected = [ref.role for ref in ss.cell_references(spec, cell)]
+        assert selected == expected[cell.view], f"{cell.view}: {selected}"
+
+
+def test_nipple_cell_keeps_only_references_that_can_show_the_crop():
     spec = ss.parse_sheet_spec(
         {
             "refs": {
@@ -654,14 +717,15 @@ def test_nipple_cell_keeps_every_imported_picture_number():
     from h3cs import planner as pl
     wired = pl.cell_work_items(spec)[0]["ref_plan"]["pictures"]
 
-    assert [ref.file for ref in refs] == [ref.file for ref in spec.pictures]
-    assert [ref.tag for ref in refs] == [f"<Picture {number}>" for number in range(1, 9)]
-    assert [item["file"] for item in wired] == [ref.file for ref in spec.pictures]
-    assert "<Picture 6> is the nipple reference." in prompt
-    assert "<Picture 8> is the body shape reference." in prompt
+    assert [ref.file for ref in refs] == ["breasts.jpg", "breast-shape.jpg", "nipple.jpg"]
+    assert [ref.tag for ref in refs] == [f"<Picture {number}>" for number in range(1, 4)]
+    assert [item["file"] for item in wired] == [ref.file for ref in refs]
+    assert "<Picture 3> is the nipple reference." in prompt
+    assert "buttocks" not in prompt and "intimate" not in prompt
+    assert "body shape" not in prompt
 
 
-def test_nipple_side_cell_keeps_every_imported_picture_number():
+def test_nipple_side_cell_filters_out_hidden_face_and_body_references():
     spec = ss.parse_sheet_spec(
         {
             "refs": {
@@ -678,9 +742,9 @@ def test_nipple_side_cell_keeps_every_imported_picture_number():
     refs = ss.cell_references(spec, cell)
     prompt = ss.build_cell_prompt(spec, cell, refs=refs)
 
-    assert [ref.file for ref in refs] == [ref.file for ref in spec.pictures]
-    assert [ref.tag for ref in refs] == ["<Picture 1>", "<Picture 2>", "<Picture 3>"]
-    assert "<Picture 3> is the sole source of the breasts." in prompt
+    assert [ref.file for ref in refs] == ["nipple.jpg"]
+    assert [ref.tag for ref in refs] == ["<Picture 1>"]
+    assert "<Picture 1> is the sole source of the breasts." in prompt
 
 
 def test_nipple_side_prompt_keeps_reference_tags_without_generic_attribution_rules():
@@ -711,8 +775,9 @@ def test_nipple_side_prompt_keeps_reference_tags_without_generic_attribution_rul
     refs = ss.cell_references(spec, cell)
     prompt = ss.build_cell_prompt(spec, cell, refs=refs)
 
-    for number in range(1, 9):
+    for number in range(1, 4):
         assert f"<Picture {number}>" in prompt
+    assert "<Picture 4>" not in prompt
     for instruction in ("Reference rule:", "must not change", "must not supply", "Identity:"):
         assert instruction not in prompt
     assert "Extreme macro photograph" in prompt
@@ -740,24 +805,25 @@ def test_prompt_override_keeps_its_text_and_lists_every_picture():
     assert "<Picture 2>" in restored_prompt
 
 
-def test_every_cell_keeps_all_picture_references_in_the_same_order():
-    """Every prompt and work item uses the source's stable picture numbering."""
+def test_face_cell_gets_the_face_picture_and_other_framings_get_their_own_subset():
     spec = _two_ref_spec(view="face")
     cell = spec.enabled_cells[0]
     refs = ss.cell_references(spec, cell)
     assert [(ref.tag, ref.file) for ref in refs] == [
         ("<Picture 1>", "face.jpg"),
-        ("<Picture 2>", "body.jpg"),
     ]
     prompt = ss.build_cell_prompt(spec, cell, refs=refs)
     legend = prompt.split("\n\n", 1)[0]
     assert "<Picture 1> is the sole source of the face, the glasses and the hair." in legend
-    assert "<Picture 2> is the body and clothes reference." in legend
+    assert "<Picture 2>" not in legend
 
-    # Other views retain exactly the same tags and order.
+    # Portrait and full-body framings can use both roles, numbered in source order.
     portrait = _two_ref_spec(view="portrait").enabled_cells[0]
     kept = ss.cell_references(_two_ref_spec(view="portrait"), portrait)
-    assert [ref.file for ref in kept] == ["face.jpg", "body.jpg"]
+    assert [(ref.tag, ref.file) for ref in kept] == [
+        ("<Picture 1>", "face.jpg"),
+        ("<Picture 2>", "body.jpg"),
+    ]
 
     # Behind the subject the face is hidden but the hair is not: keep the face picture.
     back = _two_ref_spec(view="back")
@@ -767,7 +833,7 @@ def test_every_cell_keeps_all_picture_references_in_the_same_order():
     ]
 
 
-def test_the_framing_filter_can_be_turned_off_and_never_leaves_a_cell_bare():
+def test_every_cell_disables_the_filter_and_mismatched_roles_can_leave_a_cell_without_refs():
     spec = ss.parse_sheet_spec(
         {
             "refs": {
@@ -782,27 +848,31 @@ def test_the_framing_filter_can_be_turned_off_and_never_leaves_a_cell_bare():
     )
     cell = spec.enabled_cells[0]
     per_framing = ss.cell_references(spec, cell)
-    assert [ref.file for ref in per_framing] == ["face.jpg", "body.jpg"]
+    assert [ref.file for ref in per_framing] == ["face.jpg"]
     every = ss.cell_references(spec, cell, scope="every cell")
     assert [ref.file for ref in every] == ["face.jpg", "body.jpg", "outfit.mp4"]
-    assert [ref.tag for ref in per_framing if ref.kind == "picture"] == [
-        ref.tag for ref in every if ref.kind == "picture"
-    ], "scope changes cannot shift picture identifiers"
 
-    # Only an outfit reference and a face cell: keep it rather than conditioning on
-    # nothing at all.
+    # A known, out-of-shot role is omitted rather than loaded as an irrelevant fallback.
     only_outfit = ss.parse_sheet_spec(
         {
-            "refs": {"pictures": [{"imageFile": "outfit.jpg", "role": "clothing and body"}]},
+            "refs": {
+                "pictures": [
+                    {"imageFile": "outfit.jpg", "role": "clothing and body"},
+                    {"imageFile": "untagged.jpg"},
+                ]
+            },
             "cells": [{"id": "c", "view": "face"}],
         }
     )
     kept = ss.cell_references(only_outfit, only_outfit.enabled_cells[0])
-    assert [(ref.tag, ref.file) for ref in kept] == [("<Picture 1>", "outfit.jpg")]
+    assert kept == []
+    assert [
+        ref.file
+        for ref in ss.cell_references(only_outfit, only_outfit.enabled_cells[0], scope="every cell")
+    ] == ["outfit.jpg", "untagged.jpg"]
 
 
-def test_a_cell_does_not_renumber_or_reorder_its_picture_references():
-    """A face reference chosen per cell gets its role, but keeps its picture identifier."""
+def test_a_cell_face_reference_is_kept_and_numbered_with_its_filtered_subset():
     spec = ss.parse_sheet_spec(
         {
             "refs": {
@@ -817,12 +887,20 @@ def test_a_cell_does_not_renumber_or_reorder_its_picture_references():
     cell = spec.enabled_cells[0]
     refs = ss.cell_references(spec, cell)
     assert [(ref.tag, ref.file, ref.source) for ref in refs] == [
-        ("<Picture 1>", "outfit.jpg", 0),
-        ("<Picture 2>", "face.jpg", 1),
-    ], "every picture keeps the same number in the cell"
+        ("<Picture 1>", "face.jpg", 1),
+    ]
     prompt = ss.build_cell_prompt(spec, cell, refs=refs)
-    assert "<Picture 1> is the clothing and body reference." in prompt
-    assert "<Picture 2> is the sole source of the face and the hair." in prompt
+    assert "<Picture 1> is the sole source of the face and the hair." in prompt
+
+    face_only = ss.parse_sheet_spec(
+        {
+            "refs": {"pictures": [{"imageFile": "face.jpg", "role": "face and hair"}]},
+            "cells": [{"id": "c", "view": "butt", "faceRef": "pictures:0"}],
+        }
+    )
+    assert ss.cell_references(face_only, face_only.enabled_cells[0]) == [], (
+        "an explicit face source does not bypass a strict picture allowlist"
+    )
     # "glasses" must not also register as a generic accessory, and a word that only
     # looks like a keyword ("topic") must not register as clothing.
     assert "accessories" not in ss.reference_attributes("glasses")
