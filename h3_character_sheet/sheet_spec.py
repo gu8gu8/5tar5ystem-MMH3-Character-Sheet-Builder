@@ -951,6 +951,7 @@ class SheetCell:
     pick_index: int | None = None
     aspect: str = ""
     enabled: bool = True
+    include_in_refmod: bool = True
     #: Which reference supplies THIS cell's likeness, as ``"<group>:<slot>"`` (``"pictures:1"``
     #: = the second picture in the enabled source list). Empty means "whoever claims the face",
     #: which is resolved from the references this cell receives. It is the per-panel half of
@@ -1213,6 +1214,7 @@ class SheetSpec:
                 {
                     "id": c.id,
                     "enabled": c.enabled,
+                    **({"includeInRefMod": False} if not c.include_in_refmod else {}),
                     "view": c.view,
                     "pose": c.pose,
                     "expression": c.expression,
@@ -1736,6 +1738,7 @@ def _parse_cells(raw: Any, render: SheetRenderSpec, warnings: list[str]) -> list
                 ),
                 aspect=str(item.get("aspect") or "").strip(),
                 enabled=_as_bool(item.get("enabled"), True),
+                include_in_refmod=_as_bool(item.get("includeInRefMod"), True),
                 face_ref=face_ref,
                 place=place,
                 continuity=_parse_cell_continuity(item, cell_id, warnings),

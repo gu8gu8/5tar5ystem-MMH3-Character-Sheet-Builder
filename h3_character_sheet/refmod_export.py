@@ -445,7 +445,11 @@ def board_stills(folder: Path | str | None, *, limit: int = MAX_VISUAL_REFS) -> 
     if not cells_dir.is_dir():
         return []
     ordered = cell_ids(Path(folder))
-    if not ordered:
+    included = refmod_cell_selection(Path(folder))
+    has_manifest_order = bool(ordered)
+    if included is not None:
+        ordered = [cell_id for cell_id in ordered if cell_id in included]
+    if not ordered and not has_manifest_order and included is None:
         # A folder with no manifest (a hand-made sheet, or a run that died before it wrote one)
         # still has its cells: fall back to the listing, sorted, so the views are at least stable.
         ordered = sorted(
@@ -474,6 +478,25 @@ def board_stills(folder: Path | str | None, *, limit: int = MAX_VISUAL_REFS) -> 
             len(stills), len(indexes),
         )
     return [stills[index] for index in indexes]
+
+
+def refmod_cell_selection(folder: Path | str | None) -> set[str] | None:
+    """Cell ids included in the RefMod, or ``None`` for manifests predating selection."""
+    if folder is None:
+        return None
+    spec = sheet_manifest(folder).get("spec")
+    cells = spec.get("cells") if isinstance(spec, dict) else None
+    if not isinstance(cells, list):
+        return None
+    if not any(isinstance(cell, dict) and "includeInRefMod" in cell for cell in cells):
+        return None
+    return {
+        str(cell["id"])
+        for cell in cells
+        if isinstance(cell, dict)
+        and cell.get("id")
+        and cell.get("includeInRefMod", True) is not False
+    }
 
 
 def _read_still(path: Path) -> Any | None:
@@ -1572,9 +1595,14 @@ def export_bundle(
             )
 
     if not boards or run is None:
-        stills = split_stills(cells)
+        selection = refmod_cell_selection(folder)
+        ordered_ids = cell_ids(folder) if folder is not None else []
+        has_excluded_cells = selection is not None and any(
+            cell_id not in selection for cell_id in ordered_ids
+        )
+        stills = board_stills(folder) if has_excluded_cells else split_stills(cells)
         if not stills and folder is not None:
-            stills = board_stills(folder)
+            stills = board_stills(folder) if not has_excluded_cells else []
         if stills:
             member = build_visual_mod(
                 api,

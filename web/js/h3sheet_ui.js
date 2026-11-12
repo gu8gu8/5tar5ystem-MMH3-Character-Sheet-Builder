@@ -174,6 +174,17 @@ async function queueRefmod(node) {
     if (!targets.size) {
         throw new Error("connect an H3 Sheet → RefMod node to this sheet first");
     }
+    const part = node._mmxSheet;
+    const payload = currentPayload(node, part?.state);
+    if (Array.isArray(payload.cells) && payload.cells.some(
+        (cell) => cell && Object.prototype.hasOwnProperty.call(cell, "includeInRefMod"),
+    )) {
+        await sheetAction(node, {
+            action: "refmod-selection",
+            board: part?.state?.suiteBoard || "",
+            spec: payload,
+        });
+    }
     const { workflow, output } = await app.graphToPrompt();
     const refmodOutput = refmodOnlyPrompt(output, targets, sheetName(node));
     return api.queuePrompt(0, { workflow, output: refmodOutput });

@@ -380,7 +380,9 @@ SECTIONS: tuple[HelpSection, ...] = (
             "the PNG and writes the bundle. Open it and drop your references in.",
             "**Export after rendering**: once the sheet's cells exist on disk, *Generate RefMod* "
             "at the bottom of the Builder exports those saved cell stills and the composite. "
-            "It does not queue the Builder or regenerate the cells.",
+            "In Results, uncheck any cell you do not want in the RefMod's individual views; "
+            "the composite sheet remains a separate member. It does not queue the Builder or "
+            "regenerate the cells.",
             "**Needs** ComfyUI-MiniMaxH3Mod (Luisa's RefMod pack) for the two VAE encoders - "
             "*Load H3 RefMods* and *Apply H3 RefMod* live there. Without it the node stops "
             "with the sentence that says where to clone it; nothing else in this pack cares.",

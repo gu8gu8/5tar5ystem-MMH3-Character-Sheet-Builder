@@ -1105,13 +1105,17 @@ rides H3's own reference path for a fraction of the tokens a real reference cost
 
 | Member | Built from | Layout |
 |---|---|---|
-| `<name>_views` | the Builder's `cells` output - the picked still of every cell, stacked (up to their 16-slot limit, sampled end to end) | `[1,24,T,H,W]` |
+| `<name>_views` | the picked stills of the checked cells in Results, stacked (up to their 16-slot limit, sampled end to end) | `[1,24,T,H,W]` |
 | `<name>_sheet` | the Builder's `sheet` output - the composite, as its own member | `[1,24,1,H,W]` |
 | `<name>_videos` | each reference video in the Builder's References tab - a window of consecutive frames (`video_frames`, snapped to H3's causal grid, from `video_start`) | `[1,24,T,H,W]` |
 | `<name>_voice` | the sheet's **own reference audio** - the WAV in the Builder's References tab, recorded in the manifest | `[1,32,2,T]` |
 | `<name>_voice_videos` | the soundtracks of those reference videos, joined (H3 pairs a reference video with its own soundtrack) | `[1,32,2,T]` |
 | `<name>_voice_cells` | every exported cell clip joined into one waveform (the fallback when the manifest has no reference audio) | `[1,32,2,T]` |
 | `<name>_voice_cellN` | the audio track of cell *N*'s exported clip, forced with `voice_cell=n` | `[1,32,2,T]` |
+
+In the Builder's **Results** tab, uncheck a cell's **RefMod** box to omit that still from
+`<name>_views`. The composite `<name>_sheet` remains a separate member and is not changed by
+these checkboxes.
 
 **A suite run exports as ONE bundle.** Point `sheet_dir` at a
 [suite](#the-refmod-suite-four-sheets-one-queue) run (or at any of its boards - the Builder's own

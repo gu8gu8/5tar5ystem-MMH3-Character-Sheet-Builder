@@ -888,6 +888,40 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     ok.push("a suite run's boards are a row in Results: labelled, lit and switchable");
 }
 
+// --- RefMod cell selection is independent from whether a cell was rendered --------------------
+{
+    const savedSelections = [];
+    const selectionState = core.readState(JSON.stringify({
+        cells: [{ id: "profile", enabled: true, includeInRefMod: false }],
+    }));
+    const selectionPanel = core.buildSheetInterface({
+        state: selectionState,
+        hooks: {
+            stateChanged: (payload) => savedSelections.push(payload),
+            status: () => {},
+        },
+    });
+    selectionPanel.renderResults({
+        cells: [{
+            id: "profile", frames: [], frameCount: 0, pickMode: "auto", pickIndex: 0,
+            rendered: true, view: "profile", pose: "neutral", expression: "neutral",
+            includeInRefMod: false,
+        }],
+        counts: { cells: 1, rendered: 1, frames: 0 },
+    });
+    const box = selectionPanel.results.querySelector('[data-refmod-cell="profile"]');
+    assert.ok(box, "each result cell has a distinct RefMod checkbox");
+    assert.equal(box.checked, false, "the saved selection controls the initial state");
+    box.checked = true;
+    box.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    assert.equal(savedSelections.at(-1).cells[0].includeInRefMod, true,
+        "toggling the checkbox persists the RefMod selection");
+    assert.equal(savedSelections.at(-1).cells[0].enabled, true,
+        "the separate render-enabled flag is left alone");
+    selectionPanel.dispose();
+    ok.push("Results: RefMod cell selection is independent from render selection");
+}
+
 // --- the board row follows the render, and a click is what stops it ----------------------------
 // A suite draws its sheets one board at a time, and only the board in hand has cells landing on
 // disk - so the tab that stays on the board you picked an hour ago shows an empty folder for the

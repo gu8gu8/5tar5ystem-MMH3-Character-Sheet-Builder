@@ -1124,6 +1124,30 @@ def test_scoped_manifest_still_exports_all_cells_from_recomposed_picks(tmp_path)
     ] == [10, 20, 30]
 
 
+def test_refmod_cell_selection_filters_views_but_keeps_composite(tmp_path):
+    pack, calls = fake_pack(tmp_path)
+    folder = _board(tmp_path, "selected", {"front": 10, "profile": 20, "back": 30})
+    manifest_path = folder / "selected.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["spec"] = {"cells": [
+        {"id": "front", "includeInRefMod": True},
+        {"id": "profile", "includeInRefMod": False},
+        {"id": "back", "includeInRefMod": True},
+    ]}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    rx.export_bundle(video_vae="v", sheet_dir=str(folder), name="selected", pack=pack)
+
+    views, composite = calls["extract"]
+    assert len(views["refs_image"]) == 2
+    assert [
+        round(float(views["refs_image"][f"ref_image_{index}"][0, 0, 0, 0]) * 255)
+        for index in (1, 2)
+    ] == [10, 30]
+    assert composite["name"] == "selected_sheet"
+    assert len(composite["refs_image"]) == 1
+
+
 # ---------------------------------------------------------------------- the node
 def test_the_node_maps_its_widgets_onto_the_export(tmp_path, monkeypatch):
     from h3cs.nodes import refmod as node_mod

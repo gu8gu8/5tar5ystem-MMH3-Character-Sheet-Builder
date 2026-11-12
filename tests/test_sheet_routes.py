@@ -230,6 +230,33 @@ def test_actions_are_scoped_to_the_board_they_name(suite_run):
     assert listed["board"] == "hero-4" and [entry["folder"] for entry in listed["boards"]][0] == "hero-4"
 
 
+def test_refmod_selection_updates_only_the_saved_cells_flag(tmp_path, monkeypatch):
+    root = tmp_path / "minimax_sheets"
+    monkeypatch.setattr(store_mod, "sheets_root", lambda: root)
+    store = store_mod.SheetStore("plain")
+    store.write_manifest({
+        "spec": {"cells": [
+            {"id": "front", "view": "front"},
+            {"id": "back", "view": "back"},
+        ]},
+        "cells": {"front": {"index": 0}, "back": {"index": 0}},
+    })
+
+    answer = _call({
+        "action": "refmod-selection",
+        "name": "plain",
+        "spec": {"cells": [
+            {"id": "front", "includeInRefMod": True},
+            {"id": "back", "includeInRefMod": False},
+        ]},
+    })
+
+    saved = store.read_manifest()
+    assert answer == {"ok": True, "action": "refmod-selection", "updated": 2}
+    assert [cell["includeInRefMod"] for cell in saved["spec"]["cells"]] == [True, False]
+    assert [cell["view"] for cell in saved["spec"]["cells"]] == ["front", "back"]
+
+
 def test_a_normal_sheet_run_has_no_boards(tmp_path, monkeypatch):
     """The board plumbing must be invisible to a single-sheet run."""
     root = tmp_path / "minimax_sheets"

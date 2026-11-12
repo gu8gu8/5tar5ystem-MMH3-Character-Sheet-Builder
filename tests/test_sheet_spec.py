@@ -222,6 +222,20 @@ def test_spec_round_trips_through_to_dict():
     assert again.render.frames_per_cell == spec.render.frames_per_cell
 
 
+def test_refmod_cell_selection_defaults_on_and_round_trips():
+    spec = ss.parse_sheet_spec({
+        "cells": [
+            {"id": "keep"},
+            {"id": "skip", "includeInRefMod": False},
+        ],
+    })
+
+    assert [cell.include_in_refmod for cell in spec.cells] == [True, False]
+    restored = ss.parse_sheet_spec(spec.to_dict())
+    assert [cell.include_in_refmod for cell in restored.cells] == [True, False]
+    assert [cell.enabled for cell in restored.cells] == [True, True]
+
+
 # --------------------------------------------------------------------------- #
 # cell matrix builder
 # --------------------------------------------------------------------------- #

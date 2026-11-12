@@ -274,9 +274,11 @@ def test_the_render_keeps_one_file_for_the_run(store):
 def test_scan_reports_cells_frames_picks_and_sheet_url(store):
     store.save_cell_frames("c1", _frames(3))
     store.save_cell_frames("c2", _frames(2))
-    store.write_manifest({"spec": _payload()})
-    store.rebuild_sheet(_payload())
-    payload = store.scan(spec=_payload())
+    spec = _payload()
+    spec["cells"][1]["includeInRefMod"] = False
+    store.write_manifest({"spec": spec})
+    store.rebuild_sheet(spec)
+    payload = store.scan(spec=spec)
     assert payload["counts"] == {"cells": 2, "rendered": 2, "frames": 5}
     assert payload["sheetUrl"].startswith("/view?")
     first = payload["cells"][0]
@@ -285,6 +287,7 @@ def test_scan_reports_cells_frames_picks_and_sheet_url(store):
     assert first["frames"][0]["url"].startswith("/view?")
     assert first["cellUrl"].startswith("/view?")
     assert first["view"] == "front"
+    assert payload["cells"][1]["includeInRefMod"] is False
 
 
 def test_scan_is_empty_but_valid_for_a_folder_that_does_not_exist(store):

@@ -566,6 +566,7 @@ class SheetStore:
             entry["pose"] = str(meta.get("pose") or "")
             entry["expression"] = str(meta.get("expression") or "")
             entry["caption"] = str(meta.get("caption") or "")
+            entry["includeInRefMod"] = bool(meta.get("includeInRefMod", True))
 
         sheet_exists = self.sheet_path.is_file()
         one_pass = manifest.get("onePass") if isinstance(manifest.get("onePass"), dict) else {}

@@ -16,6 +16,7 @@ Actions (all take ``name``, and a SUITE run also takes ``board``)::
     list     - refresh the listing (optionally with the panel's live spec)
     compose  - re-composite from the frames on disk, with a new spec/layout/picks
     pick     - set one cell's frame (mode + index) and re-composite
+    refmod-selection - persist per-cell RefMod inclusion without re-composing
     delete   - drop one cell's frames and picked frame, then re-composite
     clear    - drop everything this sheet wrote
     names    - every sheet folder on disk
@@ -58,6 +59,7 @@ BASE = "/h3-character-sheet"
 _ACTIONS = (
     "list", "plan", "presets", "save-preset", "delete-preset", "knobs", "help", "blur", "gallery",
     "compose", "pick", "delete", "clear", "names", "lora-info", "lora-save",
+    "refmod-selection",
 )
 
 
@@ -367,6 +369,37 @@ async def sheet_action(request):
             )
             return web.json_response(
                 _listing(store, action=action, extra={"size": list(result["size"]), "missing": result["missing"]})
+            )
+
+        if action == "refmod-selection":
+            requested_cells = (spec or {}).get("cells")
+            if not isinstance(requested_cells, list):
+                return _json_error("refmod-selection needs a cell list.")
+            requested = {}
+            for cell in requested_cells:
+                if isinstance(cell, dict) and cell.get("id") and "includeInRefMod" in cell:
+                    requested[str(cell["id"])] = cell["includeInRefMod"]
+            if not requested or any(not isinstance(value, bool) for value in requested.values()):
+                return _json_error("refmod-selection needs boolean includeInRefMod values.")
+            manifest = store.read_manifest()
+            manifest_spec = manifest.get("spec")
+            manifest_cells = manifest_spec.get("cells") if isinstance(manifest_spec, dict) else None
+            if not isinstance(manifest_cells, list):
+                return _json_error("This sheet has no cell spec to update.", status=409)
+            found = set()
+            for cell in manifest_cells:
+                if isinstance(cell, dict) and str(cell.get("id") or "") in requested:
+                    cell["includeInRefMod"] = requested[str(cell["id"])]
+                    found.add(str(cell["id"]))
+            missing = sorted(set(requested) - found)
+            if missing:
+                return _json_error(
+                    f"These cells are not in the saved sheet: {', '.join(missing)}.",
+                    status=409,
+                )
+            store.write_manifest(manifest)
+            return web.json_response(
+                {"ok": True, "action": action, "updated": len(found)}
             )
 
         if action == "delete":

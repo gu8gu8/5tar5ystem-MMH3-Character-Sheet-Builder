@@ -2178,6 +2178,8 @@ button.mmx-badge:hover { border-color: var(--mmx-tick); }
 .mmx-btn--quiet:hover:not(:disabled) { color: var(--mmx-tick); border-color: var(--mmx-tick); }
 .mmx-btn--quiet:disabled { opacity: .5; }
 .mmx-cell__retry { margin-left: 6px; }
+.mmx-cell-refmod { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; cursor: pointer; }
+.mmx-cell-refmod input { margin: 0; accent-color: var(--mmx-accent); }
 .mmx-live__frame {
   width: 100%; max-height: 220px; object-fit: contain; border-radius: 4px;
   background: rgba(0,0,0,.25);
@@ -7712,6 +7714,33 @@ export function buildSheetInterface({ state, hooks = {} }) {
                 }),
                 pickSpan,
             );
+            const refmodLabel = element("label", {
+                className: "mmx-cell-refmod",
+                title: `Include ${cell.id} in the RefMod cell views`,
+            });
+            const stateCell = (state.cells || []).find((item) => item.id === cell.id);
+            const selectedForRefmod = typeof stateCell?.includeInRefMod === "boolean"
+                ? stateCell.includeInRefMod
+                : cell.includeInRefMod !== false;
+            const refmodBox = element("input", {
+                type: "checkbox",
+                checked: selectedForRefmod,
+            });
+            refmodBox.dataset.refmodCell = cell.id;
+            refmodBox.setAttribute("aria-label", `Include ${cell.id} in RefMod`);
+            refmodBox.addEventListener("change", () => {
+                let target = (state.cells || []).find((item) => item.id === cell.id);
+                if (!target) {
+                    if (!Array.isArray(state.cells)) state.cells = [];
+                    target = { id: cell.id };
+                    state.cells.push(target);
+                }
+                target.includeInRefMod = refmodBox.checked;
+                persist();
+                notify(`${cell.id}: ${refmodBox.checked ? "included in" : "excluded from"} RefMod.`);
+            });
+            refmodLabel.append(refmodBox, element("span", { textContent: "RefMod" }));
+            caption.append(refmodLabel);
             const parts = { row, pickSpan, thumbs: new Map() };
             resultRows.set(cell.id, parts);
             // The clip this cell generated (frames + its own audio). The sheet shows the
