@@ -185,6 +185,10 @@ def test_the_nipple_side_is_an_adult_macro_profile_crop():
     assert "filling almost the entire frame" in prompt
     assert "only the nipple, its immediate areola and a tiny margin" in prompt
     assert "showing the nipple's profile and projection" in prompt
+    assert "perpendicular to the nipple's outward axis" in prompt
+    assert "edge-on as a clear silhouette" in prompt
+    assert "thin narrow ellipse" in prompt
+    assert "no circular areola" in prompt and "no three-quarter angle" in prompt
     assert "the nipple is the only subject" in prompt
     assert "no breast, chest, torso, head, face or other body parts in frame" in prompt
     assert ss.attributes_hidden_by("nipple-side") == ss.attributes_hidden_by("nipple")

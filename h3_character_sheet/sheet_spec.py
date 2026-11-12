@@ -309,13 +309,18 @@ VIEWS: tuple[SheetOption, ...] = (
     SheetOption(
         "nipple-side",
         "Nipple side (macro close up)",
-        "Extreme macro photograph of a single nipple on an adult character, filling "
-        "almost the entire frame. Crop so tightly that only the nipple, its immediate "
-        "areola and a tiny margin of surrounding skin are visible. View from exactly "
-        "90 degrees at the side, showing the nipple's profile and projection from the "
-        "skin; do not turn it toward the camera. The nipple is the only subject: no "
-        "breast, chest, torso, head, face or other body parts in frame. Sharp focus, "
-        "neutral clinical lighting.",
+        "Extreme macro photograph of a single nipple on an adult character in a strict "
+        "side profile, filling almost the entire frame. Crop so tightly that "
+        "only the nipple, its immediate areola and a tiny margin of surrounding "
+        "skin are visible. View from "
+        "exactly 90 degrees at the side, with the camera perpendicular to the nipple's "
+        "outward axis and looking across the skin, not into the areola, showing the "
+        "nipple's profile and projection from the skin, edge-on as a clear "
+        "silhouette; the areola is only a thin narrow ellipse. Do not show the "
+        "nipple face-on: no circular areola, no centered frontal view and no "
+        "three-quarter angle. The nipple is the "
+        "only subject: no breast, chest, torso, head, face or other body parts in frame. "
+        "Sharp focus, neutral clinical lighting.",
     ),
     SheetOption(
         "groin",
