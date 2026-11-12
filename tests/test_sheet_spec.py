@@ -372,6 +372,28 @@ def test_background_is_a_preset_the_user_picks():
     assert "no green spill" in ss.build_cell_prompt(spec, spec.cells[0])
 
 
+def test_every_generated_cell_prompt_includes_the_selected_background():
+    cells = [
+        {"id": view, "view": view, "pose": "neutral", "expression": "neutral"}
+        for view in ss.VIEW_KEYS
+    ]
+    for background in ss.BACKGROUND_KEYS:
+        payload = _payload(
+            cells=cells,
+            render={
+                "background": background,
+                "backgroundRef": "pictures:0",
+                "backgroundCustom": "Deep red velvet",
+            },
+        )
+        spec = ss.parse_sheet_spec(payload)
+        expected = ss.background_clause(spec)
+        assert expected in ss.build_sheet_prompt(spec, spec.cells)
+        for cell in spec.cells:
+            prompt = ss.build_cell_prompt(spec, cell)
+            assert expected in prompt, f"{cell.view} omitted the {background!r} background"
+
+
 def test_background_custom_uses_the_users_own_words():
     payload = _payload()
     payload["render"] = {"background": "custom", "backgroundCustom": "Deep red velvet curtain. "}
@@ -782,6 +804,8 @@ def test_nipple_side_prompt_keeps_reference_tags_without_generic_attribution_rul
         assert instruction not in prompt
     assert "Extreme macro photograph" in prompt
     assert "exactly 90 degrees at the side" in prompt
+    assert f"Single person against {ss.background_clause(spec)}" in prompt
+    assert "no room, no walls, no floor" in prompt
 
 
 def test_prompt_override_keeps_its_text_and_lists_every_picture():

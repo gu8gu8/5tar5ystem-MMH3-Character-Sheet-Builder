@@ -3158,18 +3158,12 @@ def cell_closing_lines(
     *,
     refs: list[SheetRef] | None = None,
 ) -> list[str]:
-    """The lines every prompt ends with: attribution, backdrop, identity restated."""
-    if cell.view == "nipple-side":
-        return (
-            [f"Do not include: {spec.negative_prompt.strip()}."]
-            if spec.negative_prompt.strip()
-            else []
-        )
-
+    """The shared prompt tail; detail crops skip attribution and identity but keep the backdrop."""
+    nipple_side = cell.view == "nipple-side"
     source = refs if refs is not None else spec.refs
     wired = [ref for ref in source if ref.enabled and ref.kind in ("picture", "video")]
-    lines = list(attribution_lines(spec, cell, refs=refs))
-    if not wired:
+    lines = [] if nipple_side else list(attribution_lines(spec, cell, refs=refs))
+    if not wired and not nipple_side:
         # No picture/video reference, so nothing to attribute: say who the person is
         # outright instead of naming references that are not wired in.
         lines.append(
@@ -3183,9 +3177,10 @@ def cell_closing_lines(
     )
     # Last line before the sampler: restate which reference owns the likeness. Cheap
     # to add and the position that carries the most weight.
-    reminder = identity_reminder(spec, cell, refs=refs)
-    if reminder:
-        lines.append(reminder)
+    if not nipple_side:
+        reminder = identity_reminder(spec, cell, refs=refs)
+        if reminder:
+            lines.append(reminder)
     return lines
 
 
