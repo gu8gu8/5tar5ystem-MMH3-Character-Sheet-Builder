@@ -713,12 +713,17 @@ def causal_frames(count: Any) -> int:
 
 
 def cell_ids(folder: Path) -> list[str]:
-    """Cell ids of a sheet folder, in sheet order (manifest, then picks, then clips)."""
+    """Cell ids from the latest compose, falling back to the render manifest."""
     folder = Path(folder)
-    for data in (sheet_manifest(folder), _json_dict(folder / _PICKS_NAME)):
-        cells = data.get("cells")
-        if isinstance(cells, dict) and cells:
-            return [str(key) for key in cells]
+    picks = _json_dict(folder / _PICKS_NAME)
+    picked_cells = picks.get("cells") if isinstance(picks.get("cells"), dict) else picks
+    if isinstance(picked_cells, dict) and picked_cells:
+        # A scoped rerender narrows the manifest to one cell; the subsequent compose
+        # writes the full current pick order to picks.json.
+        return [str(key) for key in picked_cells]
+    cells = sheet_manifest(folder).get("cells")
+    if isinstance(cells, dict) and cells:
+        return [str(key) for key in cells]
     return []
 
 

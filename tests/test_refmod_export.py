@@ -1101,6 +1101,29 @@ def test_the_views_keep_the_sheet_s_order_not_the_folder_s(tmp_path, suite_run):
     assert torch.allclose(refs["ref_image_2"], torch.full((1, 8, 8, 3), 30 / 255))
 
 
+def test_scoped_manifest_still_exports_all_cells_from_recomposed_picks(tmp_path):
+    pack, calls = fake_pack(tmp_path)
+    folder = _board(tmp_path, "plain", {"front": 10, "profile": 20, "back": 30})
+    manifest_path = folder / "plain.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["cells"] = {"profile": {"index": 0}}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (folder / "picks.json").write_text(json.dumps({
+        "front": {"index": 0},
+        "profile": {"index": 0},
+        "back": {"index": 0},
+    }), encoding="utf-8")
+
+    rx.export_bundle(video_vae="v", sheet_dir=str(folder), name="plain", pack=pack)
+
+    refs = calls["extract"][0]["refs_image"]
+    assert len(refs) == 3
+    assert [
+        round(float(refs[f"ref_image_{position}"][0, 0, 0, 0]) * 255)
+        for position in range(1, 4)
+    ] == [10, 20, 30]
+
+
 # ---------------------------------------------------------------------- the node
 def test_the_node_maps_its_widgets_onto_the_export(tmp_path, monkeypatch):
     from h3cs.nodes import refmod as node_mod
