@@ -152,6 +152,30 @@ async function queueRun(node) {
     return api.queuePrompt(0, { workflow, output });
 }
 
+/** Queue only the RefMod node(s) directly connected to this sheet. */
+async function queueRefmod(node) {
+    if (typeof app.queuePrompt !== "function") {
+        throw new Error("this frontend cannot queue a partial prompt");
+    }
+    const graph = node.graph;
+    const links = graph?.links;
+    const targets = new Set();
+    for (const output of node.outputs || []) {
+        for (const linkId of output?.links || []) {
+            const link = links instanceof Map ? links.get(linkId) : links?.[linkId];
+            if (link?.target_id == null) continue;
+            const target = (graph?._nodes || []).find(
+                (candidate) => String(candidate.id) === String(link.target_id),
+            );
+            if (target?.type === "H3SheetRefMod") targets.add(String(target.id));
+        }
+    }
+    if (!targets.size) {
+        throw new Error("connect an H3 Sheet → RefMod node to this sheet first");
+    }
+    return app.queuePrompt(0, 1, [...targets]);
+}
+
 /** Wait for ComfyUI's queue to drain, so a re-roll is not appended behind the run it cancelled. */
 async function waitForIdleQueue(attempts = 40, delayMs = 150) {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -374,6 +398,7 @@ function mountPanel(node) {
             }
             await app.queuePrompt(0, 1);
         },
+        queueRefmod: () => queueRefmod(node),
         pickFrame: (cellId, index, board) => sheetAction(node, {
             // ``manual`` is the mode a click records: it carries the frame the user chose, and
             // the store keeps it until a rule is chosen for that cell again (see rebuild_sheet).

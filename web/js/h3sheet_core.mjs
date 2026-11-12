@@ -4059,6 +4059,22 @@ export function buildSheetInterface({ state, hooks = {} }) {
     } else {
         renderButton.title = "Queue this sheet now (the same as ComfyUI's own queue button)";
     }
+    const refmodButton = button("Generate RefMod", async () => {
+        try {
+            await hooks.queueRefmod?.();
+            notify("queued RefMod generation from all chosen cells");
+        } catch (error) {
+            notify(`could not queue RefMod: ${error.message}`);
+        }
+    });
+    refmodButton.classList.add("mmx-btn--quiet");
+    refmodButton.dataset.action = "generate-refmod";
+    if (typeof hooks.queueRefmod !== "function") {
+        refmodButton.disabled = true;
+        refmodButton.title = "Generates a RefMod from all chosen cells - needs the live node";
+    } else {
+        refmodButton.title = "Queue the connected RefMod node using all chosen cells";
+    }
     const rebuildButton = button("Re-compose", async () => {
         try {
             const answer = await hooks.compose?.(boardName());
@@ -5408,7 +5424,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
     // the five tabs without a column still have to be able to press it. The status line it acts on
     // rides in the same bar, so it reads the same wherever the user is.
     const columnFoot = element("div", { className: "mmx-col__foot mmx-foot" });
-    columnFoot.append(actionbar, renderButton);
+    columnFoot.append(actionbar, refmodButton, renderButton);
     container.append(shell, columnFoot);
     const refsHost = panes.references;
     const cellsHost = panes.cells;

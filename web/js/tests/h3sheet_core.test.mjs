@@ -250,6 +250,10 @@ ok.push("per-tile face blur: auto -> on -> off, pictures and clips");
     const foot = panel.container.querySelector(":scope > .mmx-col__foot");
     assert.ok(foot, "Render is pinned in the PANEL's footer, not inside the column");
     assert.ok(!foot.closest(".mmx-col"), "so a tab without a column still has a Render button");
+    const refmod = foot.querySelector('[data-action="generate-refmod"]');
+    assert.ok(refmod, "the RefMod action is pinned in the panel footer");
+    assert.ok(refmod.disabled, "no RefMod queue hook means a disabled button");
+    assert.match(refmod.title, /live node/);
     assert.equal(foot.lastElementChild.dataset.action, "render", "with Render as its last button");
     assert.ok(foot.lastElementChild.classList.contains("mmx-btn--primary"), "and it is the primary one");
     // Anchored at the start of a line: the panel-foot override (`.mmx-foot .mmx-actionbar`) would
@@ -265,14 +269,23 @@ ok.push("per-tile face blur: auto -> on -> off, pictures and clips");
     const queued = [];
     const withQueue = core.buildSheetInterface({
         state: core.readState(""),
-        hooks: { status: () => {}, queue: async () => { queued.push("q"); } },
+        hooks: {
+            status: () => {},
+            queue: async () => { queued.push("q"); },
+            queueRefmod: async () => { queued.push("refmod"); },
+        },
     });
     const live = withQueue.container.querySelector('[data-action="render"]');
     assert.ok(!live.disabled, "with a queue hook it is pressable");
     live.click();
     await tick();
     assert.deepEqual(queued, ["q"], "and pressing it asks the wiring to queue");
-    ok.push("footer bar: pinned Render as the primary action, disabled without a queue");
+    const generateRefmod = withQueue.container.querySelector('[data-action="generate-refmod"]');
+    assert.ok(!generateRefmod.disabled, "with a RefMod queue hook it is pressable");
+    generateRefmod.click();
+    await tick();
+    assert.deepEqual(queued, ["q", "refmod"], "and it asks for RefMod generation separately");
+    ok.push("footer bar: pinned Render and separate RefMod generation action");
 }
 
 // --- phase 2: the preset cards wear your own last render of each layout --------
