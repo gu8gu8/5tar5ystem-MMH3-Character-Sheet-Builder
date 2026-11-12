@@ -1106,7 +1106,7 @@ rides H3's own reference path for a fraction of the tokens a real reference cost
 | Member | Built from | Layout |
 |---|---|---|
 | `<name>_views` | the picked stills of the checked cells in Results, stacked (up to their 16-slot limit, sampled end to end) | `[1,24,T,H,W]` |
-| `<name>_sheet` | the Builder's `sheet` output - the composite, as its own member | `[1,24,1,H,W]` |
+| `<name>_sheet` | the Builder's `sheet` output - the composite, as its own member when `send_composite` is enabled (default) | `[1,24,1,H,W]` |
 | `<name>_videos` | each reference video in the Builder's References tab - a window of consecutive frames (`video_frames`, snapped to H3's causal grid, from `video_start`) | `[1,24,T,H,W]` |
 | `<name>_voice` | the sheet's **own reference audio** - the WAV in the Builder's References tab, recorded in the manifest | `[1,32,2,T]` |
 | `<name>_voice_videos` | the soundtracks of those reference videos, joined (H3 pairs a reference video with its own soundtrack) | `[1,32,2,T]` |
@@ -1114,14 +1114,15 @@ rides H3's own reference path for a fraction of the tokens a real reference cost
 | `<name>_voice_cellN` | the audio track of cell *N*'s exported clip, forced with `voice_cell=n` | `[1,32,2,T]` |
 
 In the Builder's **Results** tab, uncheck a cell's **RefMod** box to omit that still from
-`<name>_views`. The composite `<name>_sheet` remains a separate member and is not changed by
-these checkboxes.
+`<name>_views`. The RefMod node's **send composite** checkbox independently controls whether
+the composite is included as `<name>_sheet`; it does not affect the sheet image saved by the
+Builder. The default is on, preserving the existing export.
 
 **A suite run exports as ONE bundle.** Point `sheet_dir` at a
 [suite](#the-refmod-suite-four-sheets-one-queue) run (or at any of its boards - the Builder's own
 `sheet_dir` output is the hero board, so the shipped `+ RefMod` workflow needs nothing rewired) and
-every board goes into the one file: `<name>_hero-4_views`, `<name>_hero-4_sheet`,
-`<name>_expressions-6_views`, `<name>_expressions-6_sheet`, and so on, in the order the boards render,
+every board goes into the one file: `<name>_hero-4_views`, optionally `<name>_hero-4_sheet`,
+`<name>_expressions-6_views`, optionally `<name>_expressions-6_sheet`, and so on, in the order the boards render,
 with a single `<name>_voice` / `<name>_videos` for the run, because every board was rendered from the
 same references. Each board's views are read from its own `cells/` folder in the **sheet's cell order**
 (the manifest's, not the folder listing's), and the run's manifest records which bundle carries it in

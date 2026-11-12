@@ -17,8 +17,8 @@ Everything the sheet already has maps onto that:
 * ``cells`` - the picked still of every cell, stacked as one member: a multi-view
   identity board. This is how their own ``elf_girl`` mod was extracted
   (``mode=encode, source=stack, pool="full-res 864x1536px (short-edge cap 1024px)"``).
-* ``sheet`` - the composited sheet as a second member, so the layout that was
-  authored for ref2va is in the bundle too.
+* ``sheet`` - optionally, the composited sheet as a second member, so the layout
+  that was authored for ref2va is in the bundle too.
 * the voice - either an ``AUDIO`` input, or the audio track of a cell's exported
   clip (``<sheet>/clips/<cell>_00001_.mp4``: the voice H3 generated with that take).
 
@@ -1489,6 +1489,7 @@ def export_bundle(
     voice_description: str = "",
     video_frames: int = DEFAULT_VIDEO_FRAMES,
     video_start: float = 0.0,
+    send_composite: bool = True,
     save: bool = True,
     pack: Any = None,
     api: _Api | None = None,
@@ -1499,15 +1500,18 @@ def export_bundle(
     wired AUDIO. ``voice_cell`` picks the voice source: ``-1`` walks the ladder (the
     sheet's own reference audio, else its reference videos' soundtracks, else its exported
     cell clips joined, else ``audio``), ``0`` keeps the sheet out of it (``audio`` only) and
-    ``n`` forces the nth cell's clip. ``video_frames`` is how many consecutive frames of
-    each reference video become the motion member (``0`` turns it off; it is snapped to
-    H3's causal grid) and ``video_start`` where in the clip that window begins.
+    ``n`` forces the nth cell's clip. ``send_composite`` controls whether the composited
+    sheet is included as a separate appearance member. ``video_frames`` is how many
+    consecutive frames of each reference video become the motion member (``0`` turns it
+    off; it is snapped to H3's causal grid) and ``video_start`` where in the clip that
+    window begins.
 
     A SUITE run (several sheets under one run name, one folder per board) is exported as ONE
     bundle: ``sheet_dir`` may point at the run or at any of its boards - the Builder's own
     ``sheet_dir`` output is the hero board - every board contributes ``<name>_<board>_views`` and
-    ``<name>_<board>_sheet`` from its own folder, and the motion and voice members are read once
-    from the run's first board, because every board was rendered from the same references.
+    ``<name>_<board>_sheet`` from its own folder when ``send_composite`` is enabled, and
+    the motion and voice members are read once from the run's first board, because every
+    board was rendered from the same references.
     ``pack`` / ``api`` are injection points for tests; see :func:`voice_member`.
     """
     if pack is None and api is None:
@@ -1565,7 +1569,7 @@ def export_bundle(
                     f"suite: {entry['label']} ({entry['folder']}) has no cell stills on disk - "
                     "that board is not in this bundle."
                 )
-            board_sheet = board_sheet_still(board_dir)
+            board_sheet = board_sheet_still(board_dir) if send_composite else []
             if board_sheet:
                 member = build_visual_mod(
                     api,
@@ -1581,6 +1585,8 @@ def export_bundle(
                 )
                 members.append(member)
                 lines.append(f"appearance: {entry['label']}'s composite as '{prefix}_sheet'")
+        if not send_composite:
+            lines.append("appearance: composite sheet members omitted (send_composite is off)")
         if not members:
             raise RefModExportError(
                 f"nothing to export: none of the {len(boards)} board(s) of {run.name!r} has "
@@ -1626,8 +1632,8 @@ def export_bundle(
                 f"({MODES.get(str(mode), mode)}, short edge {int(ref_resolution)}px)"
             )
 
-        sheet_still = split_stills(sheet, limit=1)
-        if not sheet_still and folder is not None:
+        sheet_still = split_stills(sheet, limit=1) if send_composite else []
+        if send_composite and not sheet_still and folder is not None:
             sheet_still = board_sheet_still(folder)
         if sheet_still:
             member = build_visual_mod(
@@ -1644,6 +1650,8 @@ def export_bundle(
             )
             members.append(member)
             lines.append(f"appearance: the composited sheet as '{mod_name}_sheet'")
+        elif not send_composite:
+            lines.append("appearance: composite sheet omitted (send_composite is off)")
 
     video, video_lines = video_member(
         api,

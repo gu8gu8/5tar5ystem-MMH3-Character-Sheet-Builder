@@ -1012,6 +1012,18 @@ def test_a_suite_run_exports_every_board_into_one_bundle(tmp_path, suite_run, mo
     assert record["suite"]["boards"] == SUITE_BOARDS, "the rest of the record survives"
 
 
+def test_a_suite_can_omit_every_composite_member(tmp_path, suite_run):
+    pack, calls = fake_pack(tmp_path)
+    result = rx.export_bundle(
+        video_vae="v", sheet_dir=str(suite_run), name="elf",
+        send_composite=False, pack=pack,
+    )
+    assert [call["name"] for call in calls["extract"]] == [
+        "elf_hero-4_views", "elf_expressions-6_views",
+    ]
+    assert "composite sheet members omitted" in result.report
+
+
 def test_pointing_at_a_board_finds_the_run_one_level_up(tmp_path, suite_run):
     """The Builder's own sheet_dir output is the hero board, so this is the shipped path."""
     pack, calls = fake_pack(tmp_path)
@@ -1037,6 +1049,24 @@ def test_a_plain_sheet_run_is_not_a_suite(tmp_path, sheets_root, input_root):
     assert [call["name"] for call in calls["extract"]] == ["plain_views", "plain_sheet"]
     assert result.boards == []
     assert "suite:" not in result.report
+
+
+def test_a_plain_sheet_can_omit_the_wired_and_saved_composite(tmp_path, sheets_root):
+    pack, calls = fake_pack(tmp_path)
+    folder = make_sheet_folder(sheets_root, "plain", cells=["a"], clips=[])
+    _png(folder / "plain-sheet.png", 30)
+    manifest_path = folder / "plain.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["sheetFile"] = "plain-sheet.png"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    result = rx.export_bundle(
+        cells=stills(1), sheet=stills(1), video_vae="v",
+        sheet_dir=str(folder), name="plain", send_composite=False, pack=pack,
+    )
+
+    assert [call["name"] for call in calls["extract"]] == ["plain_views"]
+    assert "composite sheet omitted" in result.report
 
 
 def test_a_plain_sheet_exports_saved_images_without_wired_outputs(tmp_path, sheets_root):
@@ -1180,7 +1210,7 @@ def test_the_node_maps_its_widgets_onto_the_export(tmp_path, monkeypatch):
         video_vae="v", audio_vae="a", cells=stills(2), sheet=stills(1), audio=VOICE,
         sheet_dir="/tmp/sheet", name="hero", subfolder="people", mode="Full Reference",
         ref_resolution=768, max_tokens=2048, refine_steps=111, concept_type="identity",
-        description="a hero", voice_cell=2, voice_seconds=12.5,
+        description="a hero", voice_cell=2, voice_seconds=12.5, send_composite=False,
     ).result
 
     mods, path, report = out
@@ -1192,6 +1222,7 @@ def test_the_node_maps_its_widgets_onto_the_export(tmp_path, monkeypatch):
     assert seen["voice_max_seconds"] == 12.5
     assert seen["ref_resolution"] == 768 and seen["max_tokens"] == 2048
     assert seen["voice_cell"] == 2 and seen["subfolder"] == "people"
+    assert seen["send_composite"] is False
 
 
 def test_refmod_export_is_not_reused_from_the_execution_cache():

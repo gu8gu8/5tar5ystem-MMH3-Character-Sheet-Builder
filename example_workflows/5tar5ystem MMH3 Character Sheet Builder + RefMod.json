@@ -476,7 +476,8 @@
         "character_sheets",
         "",
         16,
-        0
+        0,
+        true
       ],
       "widgets_values_named": {
         "name": "elf_girl_test",
@@ -492,7 +493,8 @@
         "subfolder": "character_sheets",
         "description": "",
         "video_frames": 16,
-        "video_start": 0
+        "video_start": 0,
+        "send_composite": true
       },
       "color": "#323",
       "bgcolor": "#535"

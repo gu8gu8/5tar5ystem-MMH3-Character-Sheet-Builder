@@ -66,7 +66,8 @@ class H3SheetRefMod(io.ComfyNode):
             description=(
                 "Export a character sheet as a ComfyUI-MiniMaxH3Mod (RefMod) bundle: "
                 "the picked cell stills as a stacked appearance member, the composited "
-                "sheet as a second one, the sheet's reference videos as a motion member, "
+                "sheet optionally as a second member, the sheet's reference videos as "
+                "a motion member, "
                 "and a voice member from the sheet's own reference audio, its videos' "
                 "soundtracks, its exported clips, or a connected audio. A SUITE run (the "
                 "RefMod suite preset) exports as ONE bundle with a member pair per board, "
@@ -271,6 +272,15 @@ class H3SheetRefMod(io.ComfyNode):
                             "starts. 0 is the beginning of the clip - the same place "
                             "H3's own ref2va path takes its frames from.",
                 ),
+                io.Boolean.Input(
+                    "send_composite",
+                    default=True,
+                    label_on="send composite",
+                    label_off="don't send composite",
+                    tooltip="Include the composited sheet as a separate appearance member "
+                            "in the RefMod bundle. This does not affect the sheet image "
+                            "saved by the Builder.",
+                ),
             ],
             outputs=[
                 io.Custom("H3_REF_MODS").Output(
@@ -305,6 +315,7 @@ class H3SheetRefMod(io.ComfyNode):
         save: bool = True,
         video_frames: int = DEFAULT_VIDEO_FRAMES,
         video_start: float = 0.0,
+        send_composite: bool = True,
     ) -> io.NodeOutput:
         # A first line that tells the truth about the optional dependency: this is the
         # exact sentence the user needs when their export refuses to run.
@@ -329,6 +340,7 @@ class H3SheetRefMod(io.ComfyNode):
                 voice_max_seconds=voice_seconds,
                 video_frames=video_frames,
                 video_start=video_start,
+                send_composite=send_composite,
                 save=save,
             )
         except RefModPackMissing as exc:

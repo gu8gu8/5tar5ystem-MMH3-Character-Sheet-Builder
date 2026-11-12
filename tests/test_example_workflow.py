@@ -155,6 +155,7 @@ def test_the_refmod_example_saves_something_loadable():
     assert settings["mode"] == "Full Reference", "identity needs the real encode, not pooling"
     assert settings["concept_type"] == "identity"
     assert settings["voice_cell"] == -1, "voice comes from the first cell that exported a clip"
+    assert settings["send_composite"] is True, "the example keeps the composite by default"
     # Values the node's own widgets can produce (their declared steps).
     assert int(settings["ref_resolution"]) % 64 == 0
     assert int(settings["max_tokens"]) % 512 == 0
