@@ -2141,6 +2141,14 @@ button.mmx-badge:hover { border-color: var(--mmx-tick); }
 .mmx-cell { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--mmx-line); padding: 3px 0; }
 .mmx-cell__refs { flex: 1 0 100%; font-size: 10px; color: var(--mmx-muted); }
 .mmx-prompt { border-bottom: 1px solid var(--mmx-line); padding: 4px 0; }
+.mmx-prompt__refs { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.mmx-prompt__ref {
+  display: flex; align-items: center; gap: 4px; max-width: 220px; padding: 3px;
+  border: 1px solid var(--mmx-line); border-radius: 5px; cursor: pointer;
+}
+.mmx-prompt__ref-thumb { width: 38px; height: 38px; flex: 0 0 auto; border-radius: 3px; object-fit: cover; }
+.mmx-prompt__ref-caption { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.mmx-prompt__ref-check { accent-color: var(--mmx-accent); }
 .mmx-prompt pre {
   margin: 3px 0 0; padding: 4px; border: 1px solid var(--mmx-line); border-radius: 6px;
   background: rgba(0,0,0,.14); color: var(--mmx-fg); font-size: 10px; line-height: 1.35;
@@ -3007,6 +3015,18 @@ export function buildSheetInterface({ state, hooks = {} }) {
     const notify = (text) => hooks.status?.(text);
     const persist = () => hooks.stateChanged?.(toPayload(state));
     const viewUrl = (url) => hooks.assetUrl?.(url) || url;
+    const moveReferenceSlot = (groupKey, from, to) => {
+        if (!moveSlot(state.refs, groupKey, from, to)) return false;
+        const fromId = `${groupKey}:${from}`;
+        const toId = `${groupKey}:${to}`;
+        for (const cell of state.cells || []) {
+            if (!Array.isArray(cell.excludedRefs)) continue;
+            cell.excludedRefs = cell.excludedRefs.map((id) => (
+                id === fromId ? toId : id === toId ? fromId : id
+            ));
+        }
+        return true;
+    };
     // The pack's own sample render, for a canvas with nothing in it (see PLACEHOLDER_ART). The path
     // is relative to the extension's web directory, so the HOST resolves it - the wiring knows its
     // own URL, the harness knows its own, and a bare module passes no hook and gets the plain hint.
@@ -5630,7 +5650,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
             notify(`${group.label} stay together - the prompt numbers each kind separately.`);
             return;
         }
-        if (moveSlot(state.refs, group.key, moving.index, index)) {
+        if (moveReferenceSlot(group.key, moving.index, index)) {
             persist();
             refresh();
             notify(`reordered ${group.label.toLowerCase()}`);
@@ -5909,7 +5929,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
             const group = moving.group;
             const free = group ? nextFreeSlot(state.refs, group.key, 0) : null;
             if (group && free !== null && free !== moving.index
-                && moveSlot(state.refs, group.key, moving.index, free)) {
+                && moveReferenceSlot(group.key, moving.index, free)) {
                 event.preventDefault();
                 persist();
                 refresh();
@@ -6256,7 +6276,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
             if (!moving) return;
             const group = moving.group;
             const free = group ? nextFreeSlot(state.refs, group.key, 0) : null;
-            if (group && free !== null && moveSlot(state.refs, group.key, moving.index, free)) {
+            if (group && free !== null && moveReferenceSlot(group.key, moving.index, free)) {
                 persist();
                 refresh();
                 notify(`moved ${group.label.toLowerCase()}`);
@@ -7321,7 +7341,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
         const head = element("div", { className: "mmx-row" }, { marginBottom: "4px" });
         head.append(
             element("span", {
-                textContent: `Editable per-cell prompt (${planCells.length} cell(s)); used in per-cell mode, not the combined one-pass prompt.`,
+                textContent: `Editable per-cell prompt (${planCells.length} cell(s)); unchecked pictures are omitted in per-cell mode. One-pass uses combined references.`,
                 className: "mmx-muted",
             }),
             element("span", { className: "mmx-spacer" }),
@@ -7345,6 +7365,53 @@ export function buildSheetInterface({ state, hooks = {} }) {
                 textContent: `${index + 1}. ${cell.id} · references: ${(cell.refs || []).join(", ") || "none"}${blurredMarks}${marks}`,
                 className: "mmx-muted",
             }));
+            const referenceOptions = (cell.referenceOptions || []).filter(
+                (reference) => reference.kind === "picture" && reference.id && reference.file,
+            );
+            if (referenceOptions.length) {
+                const choices = element("div", { className: "mmx-prompt__refs" });
+                choices.setAttribute("role", "group");
+                choices.setAttribute("aria-label", `Reference pictures for ${cell.id}`);
+                for (const reference of referenceOptions) {
+                    const filename = String(reference.file).split(/[\\/]/).pop() || String(reference.file);
+                    const label = element("label", { className: "mmx-prompt__ref" });
+                    label.title = reference.file;
+                    const checkbox = element("input", {
+                        type: "checkbox",
+                        className: "mmx-prompt__ref-check",
+                    });
+                    checkbox.checked = Boolean(reference.selected);
+                    checkbox.setAttribute(
+                        "aria-label",
+                        `${reference.selected ? "Send" : "Exclude"} ${filename} for ${cell.id}`,
+                    );
+                    const thumbnail = element("img", {
+                        className: "mmx-prompt__ref-thumb",
+                        alt: filename,
+                    });
+                    thumbnail.src = viewUrl(refViewUrl(reference.file));
+                    const caption = element("span", {
+                        className: "mmx-prompt__ref-caption",
+                        textContent: `${reference.selected ? reference.tag : "Excluded"} · ${reference.role || filename}`,
+                    });
+                    label.append(checkbox, thumbnail, caption);
+                    checkbox.addEventListener("change", () => {
+                        const target = state.cells.find((entry) => entry.id === cell.id);
+                        if (!target) return;
+                        const excluded = new Set(
+                            Array.isArray(target.excludedRefs) ? target.excludedRefs.map(String) : [],
+                        );
+                        if (checkbox.checked) excluded.delete(reference.id);
+                        else excluded.add(reference.id);
+                        if (excluded.size) target.excludedRefs = [...excluded];
+                        else delete target.excludedRefs;
+                        persist();
+                        refreshPlan();
+                    });
+                    choices.append(label);
+                }
+                block.append(choices);
+            }
             const editor = element("textarea", {
                 className: "mmx-input mmx-prompt__editor",
                 value: cell.prompt || "",

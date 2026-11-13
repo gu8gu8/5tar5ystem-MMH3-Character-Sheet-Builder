@@ -536,6 +536,7 @@ def _plan_response(body: dict[str, Any]) -> web.Response:
             "prompt": item["prompt"],
             "refs": sheet_planner.plan_tags(item.get("ref_plan") or {}),
             "blurred": _blurred_tags(item.get("ref_plan") or {}, decisions),
+            "referenceOptions": item.get("reference_options") or [],
             # Frames handed over from the previous cell (0 = this cell starts from its
             # own noise). Shown so a run of chained cells is visible before the render.
             "continuity": int(item.get("continuity") or 0),

@@ -1726,6 +1726,88 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     ok.push("per-cell prompt edits persist with the workflow and reset to their generated text");
 }
 
+// --- per-cell prompt references can be included or excluded -------------------------------
+{
+    const promptState = core.readState(JSON.stringify({
+        cells: [{ id: "front", view: "front" }],
+    }));
+    const savedPayloads = [];
+    const promptPanel = core.buildSheetInterface({
+        state: promptState,
+        hooks: {
+            stateChanged: (payload) => savedPayloads.push(payload),
+            status: () => {},
+            planCells: async () => {
+                const excluded = (promptState.cells[0].excludedRefs || []).includes("pictures:0");
+                return {
+                    cells: [{
+                        id: "front",
+                        prompt: excluded ? "No face reference" : "Use <Picture 1>",
+                        refs: excluded ? [] : ["<Picture 1>"],
+                        referenceOptions: [{
+                            id: "pictures:0",
+                            kind: "picture",
+                            file: "h3_character_sheet/face.png",
+                            role: "face and hair",
+                            selected: !excluded,
+                            tag: excluded ? "" : "<Picture 1>",
+                        }],
+                    }],
+                };
+            },
+        },
+    });
+    await tick();
+    promptPanel.showTab("prompts");
+    await tick();
+    let checkbox = promptPanel.container.querySelector(".mmx-prompt__ref-check");
+    assert.ok(checkbox, "the per-cell prompt shows reference pictures with a checkbox");
+    assert.equal(checkbox.checked, true);
+    assert.ok(
+        promptPanel.container.querySelector(".mmx-prompt__ref-thumb").src.includes("face.png"),
+        "the checkbox is paired with the reference preview",
+    );
+
+    checkbox.checked = false;
+    checkbox.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    await tick();
+    assert.deepEqual(promptState.cells[0].excludedRefs, ["pictures:0"]);
+    assert.deepEqual(savedPayloads.at(-1).cells[0].excludedRefs, ["pictures:0"],
+        "the per-cell exclusion is saved with the workflow");
+    assert.equal(promptPanel.container.querySelector(".mmx-prompt__ref-check").checked, false);
+    assert.equal(promptPanel.container.querySelector(".mmx-prompt__editor").value, "No face reference");
+
+    checkbox = promptPanel.container.querySelector(".mmx-prompt__ref-check");
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    await tick();
+    assert.equal(promptState.cells[0].excludedRefs, undefined, "re-checking clears the exclusion");
+    assert.equal(promptPanel.container.querySelector(".mmx-prompt__editor").value, "Use <Picture 1>");
+    promptPanel.dispose();
+    ok.push("Prompt-tab reference checkboxes persist and refresh the per-cell plan");
+}
+
+// --- excluded references follow their pictures when the reference slots are reordered ----
+{
+    const reorderState = core.readState("");
+    reorderState.refs.pictures[0] = { file: "first.png", role: "", enabled: true };
+    reorderState.refs.pictures[1] = { file: "second.png", role: "", enabled: true };
+    reorderState.cells = [{ id: "front", view: "front", excludedRefs: ["pictures:0"] }];
+    const reorderPanel = core.buildSheetInterface({
+        state: reorderState,
+        hooks: { status: () => {} },
+    });
+    const first = reorderPanel.container.querySelector('.mmx-tile[data-group="pictures"][data-index="0"]');
+    const second = reorderPanel.container.querySelector('.mmx-tile[data-group="pictures"][data-index="1"]');
+    fire(first, "dragstart", slotTransfer());
+    fire(second, "drop", slotTransfer());
+    assert.equal(reorderState.refs.pictures[0].file, "second.png");
+    assert.deepEqual(reorderState.cells[0].excludedRefs, ["pictures:1"],
+        "the exclusion follows the picture, not the slot it used to occupy");
+    reorderPanel.dispose();
+    ok.push("per-cell reference exclusions follow pictures when the reference grid is reordered");
+}
+
 // --- every framing has a mark, and every mark is drawn ---------------------------------------
 // A framing a user cannot see is a framing they cannot tick: adding a view is two edits (the row
 // entry and its symbol), and forgetting the second leaves an empty square that reads as a glitch -

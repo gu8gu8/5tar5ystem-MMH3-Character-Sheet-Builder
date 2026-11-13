@@ -77,6 +77,31 @@ def test_plan_action_returns_each_cells_prompt_and_its_references():
     assert "must not supply a face, a hairstyle, hair colour, hair length, skin tone or facial features" in whole["prompt"]
 
 
+def test_plan_action_exposes_reference_choices_and_the_actual_per_cell_subset():
+    payload = {
+        "refs": {
+            "pictures": [
+                {"imageFile": "face.jpg", "role": "face and hair"},
+                {"imageFile": "body.jpg", "role": "body and clothes"},
+            ]
+        },
+        "cells": [
+            {"id": "front", "view": "front", "excludedRefs": ["pictures:0"]},
+        ],
+    }
+
+    answer = _call({"action": "plan", "spec": payload})
+
+    cell = answer["cells"][0]
+    assert cell["refs"] == ["<Picture 1>"]
+    assert "<Picture 1>" in cell["prompt"]
+    assert "<Picture 2>" not in cell["prompt"]
+    assert [(entry["id"], entry["selected"], entry["tag"]) for entry in cell["referenceOptions"]] == [
+        ("pictures:0", False, ""),
+        ("pictures:1", True, "<Picture 1>"),
+    ]
+
+
 def test_plan_action_uses_a_saved_per_cell_prompt_override():
     override = "Use <Picture 1> as the source. Keep the shot close."
     payload = {

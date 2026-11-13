@@ -133,6 +133,40 @@ def test_disabled_references_are_not_wired():
     assert [item["file"] for item in plan["pictures"]] == ["a.png"]
 
 
+def test_per_cell_exclusions_filter_wiring_but_remain_available_as_prompt_options():
+    spec = _spec(
+        refs={
+            "pictures": [
+                {"imageFile": "face.png", "role": "face and hair"},
+                {"imageFile": "body.png", "role": "body proportions"},
+            ]
+        },
+        cells=[{"id": "front", "view": "front", "excludedRefs": ["pictures:0"]}],
+    )
+
+    item = pl.cell_work_items(spec)[0]
+
+    assert [entry["file"] for entry in item["ref_plan"]["pictures"]] == ["body.png"]
+    assert item["reference_options"] == [
+        {
+            "id": "pictures:0",
+            "kind": "picture",
+            "file": "face.png",
+            "role": "face and hair",
+            "selected": False,
+            "tag": "",
+        },
+        {
+            "id": "pictures:1",
+            "kind": "picture",
+            "file": "body.png",
+            "role": "body proportions",
+            "selected": True,
+            "tag": "<Picture 1>",
+        },
+    ]
+
+
 def test_reference_limits_still_apply_to_the_wiring():
     spec = ss.parse_sheet_spec({"refs": {"pictures": [{"imageFile": f"{i}.png"} for i in range(12)]}})
     assert len(pl.reference_plan(spec)["pictures"]) == ss.MAX_PICTURES

@@ -892,6 +892,8 @@ class SheetRef:
     #: Position in the run's enabled reference set. Picture indices stay fixed across
     #: cells; ``source`` still points at the loader in the full reference set.
     source: int = -1
+    #: Original position in the panel's per-kind slot list; stable when other slots are toggled.
+    source_slot: int = -1
     #: Face blur for this reference: ``"auto"`` (see :func:`blur_face_decisions`),
     #: ``"on"`` or ``"off"``. The panel writes it; the node blurs the file before it
     #: is wired, so the model never sees the face of a non-identity reference.
@@ -957,6 +959,8 @@ class SheetCell:
     #: which is resolved from the references this cell receives. It is the per-panel half of
     #: the sheet: a panel can take its face from another picture.
     face_ref: str = ""
+    #: Per-cell references deliberately omitted from the prompt and graph, keyed by source slot.
+    excluded_refs: list[str] = field(default_factory=list)
     place: dict[str, int] = field(default_factory=dict)
     #: Latent continuation for this cell: ``inherit`` (the render setting), ``on`` or
     #: ``off``. The first cell of a sheet never continues - there is nothing before it.
@@ -1150,17 +1154,29 @@ class SheetSpec:
                         "imageFile": r.file,
                         "role": r.role,
                         "enabled": r.enabled,
+                        "sourceSlot": r.source_slot if r.source_slot >= 0 else r.index,
                         "blurFace": r.blur_face,
                         **({"blurPaint": [dict(stroke) for stroke in r.blur_paint]} if r.blur_paint else {}),
                     }
                     for r in self.pictures
                 ],
                 "videos": [
-                    {"videoFile": r.file, "role": r.role, "enabled": r.enabled, "blurFace": r.blur_face}
+                    {
+                        "videoFile": r.file,
+                        "role": r.role,
+                        "enabled": r.enabled,
+                        "sourceSlot": r.source_slot if r.source_slot >= 0 else r.index,
+                        "blurFace": r.blur_face,
+                    }
                     for r in self.videos
                 ],
                 "audios": [
-                    {"audioFile": r.file, "role": r.role, "enabled": r.enabled}
+                    {
+                        "audioFile": r.file,
+                        "role": r.role,
+                        "enabled": r.enabled,
+                        "sourceSlot": r.source_slot if r.source_slot >= 0 else r.index,
+                    }
                     for r in self.audios
                 ],
             },
@@ -1231,6 +1247,7 @@ class SheetSpec:
                     # The panel's own face source rides the manifest too: a saved spec has to
                     # round-trip as the sheet that was run, panel choices included.
                     **({"faceRef": c.face_ref} if c.face_ref else {}),
+                    **({"excludedRefs": list(c.excluded_refs)} if c.excluded_refs else {}),
                 }
                 for c in self.cells
             ],
@@ -1378,7 +1395,7 @@ def _parse_refs(raw: Any, warnings: list[str]) -> list[SheetRef]:
         if not isinstance(items, list):
             continue
         kept = 0
-        for item in items:
+        for slot_index, item in enumerate(items):
             if not isinstance(item, dict):
                 continue
             file = _file_of(item, kind)
@@ -1389,6 +1406,11 @@ def _parse_refs(raw: Any, warnings: list[str]) -> list[SheetRef]:
                     f"{list_key}: kept the first {limit} references; extra slots ignored."
                 )
                 break
+            source_slot = _as_int(
+                item.get("sourceSlot", item.get("source_slot")), slot_index
+            )
+            if source_slot < 0:
+                source_slot = slot_index
             role = str(item.get("role") or item.get("label") or "").strip()[:160]
             label = f"{list_key} {kept + 1}"
             refs.append(
@@ -1398,6 +1420,7 @@ def _parse_refs(raw: Any, warnings: list[str]) -> list[SheetRef]:
                     role=role,
                     enabled=_as_bool(item.get("enabled"), True),
                     index=kept,
+                    source_slot=source_slot,
                     blur_face=_parse_blur_mode(item, label, warnings),
                     blur_paint=parse_blur_paint(
                         item.get("blurPaint", item.get("blur_paint")), label, warnings
@@ -1683,6 +1706,10 @@ def _parse_cells(raw: Any, render: SheetRenderSpec, warnings: list[str]) -> list
             )
             face_ref = ""
 
+        excluded_refs = _parse_excluded_refs(
+            item.get("excludedRefs", item.get("excluded_refs")), cell_id, warnings
+        )
+
         pick = str(item.get("pick") or "auto").strip().lower()
         pick_index = item.get("pickIndex", item.get("pick_index"))
         if pick not in PICKS:
@@ -1740,11 +1767,33 @@ def _parse_cells(raw: Any, render: SheetRenderSpec, warnings: list[str]) -> list
                 enabled=_as_bool(item.get("enabled"), True),
                 include_in_refmod=_as_bool(item.get("includeInRefMod"), True),
                 face_ref=face_ref,
+                excluded_refs=excluded_refs,
                 place=place,
                 continuity=_parse_cell_continuity(item, cell_id, warnings),
             )
         )
     return cells
+
+
+def _parse_excluded_refs(raw: Any, cell_id: str, warnings: list[str]) -> list[str]:
+    """Parse stable per-kind source-slot IDs such as ``pictures:2``."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        warnings.append(f"cell {cell_id}: excluded references must be a list; ignored.")
+        return []
+    groups = {"pictures", "videos", "audios"}
+    excluded: list[str] = []
+    for value in raw:
+        text = str(value or "").strip()
+        group, separator, slot = text.partition(":")
+        if not separator or group not in groups or not slot.isdigit():
+            warnings.append(f"cell {cell_id}: invalid excluded reference {text!r}; ignored.")
+            continue
+        stable_id = f"{group}:{int(slot)}"
+        if stable_id not in excluded:
+            excluded.append(stable_id)
+    return excluded
 
 
 def _parse_only_cells(render_raw: dict[str, Any]) -> list[str]:
@@ -2321,6 +2370,15 @@ def _join(items: list[str]) -> str:
 FACE_REF_KINDS = {"pictures": "picture", "videos": "video", "audios": "audio"}
 
 
+def reference_source_id(ref: SheetRef) -> str:
+    """Stable panel ID for a source slot, independent of the current H3 prompt tag."""
+    group = {"picture": "pictures", "video": "videos", "audio": "audios"}.get(ref.kind)
+    slot = ref.source_slot if ref.source_slot >= 0 else ref.source
+    if slot < 0:
+        slot = ref.index
+    return f"{group}:{slot}" if group else ""
+
+
 def cell_face_reference(cell: SheetCell, refs: Iterable[SheetRef]) -> SheetRef | None:
     """The reference a CELL names as its likeness source (``cell.face_ref``), or ``None``.
 
@@ -2543,6 +2601,7 @@ def cell_references(
     cell: SheetCell,
     *,
     scope: str = DEFAULT_REF_SCOPE,
+    apply_exclusions: bool = True,
 ) -> list[SheetRef]:
     """The references THIS cell should receive.
 
@@ -2555,6 +2614,9 @@ def cell_references(
     A cell that names its own face reference (``cell.face_ref``, the panel's drag-and-drop)
     gives it the face attribute. Picture references still have to match the cell's
     allowlist; see :func:`cell_face_reference`.
+    ``cell.excluded_refs`` is applied after role and identity selection, so an explicit
+    identity reference can still be deliberately omitted. Set ``apply_exclusions`` to
+    ``False`` to retrieve the candidates shown in the Prompt tab.
     """
     enabled = [ref for ref in spec.refs if ref.enabled]
     every_cell = str(scope or "").strip().lower() == "every cell"
@@ -2598,6 +2660,10 @@ def cell_references(
                 for ref in enabled
                 if (ref.kind, ref.source) in kept_sources
             ]
+
+    if apply_exclusions and cell.excluded_refs:
+        excluded = set(cell.excluded_refs)
+        kept = [ref for ref in kept if reference_source_id(ref) not in excluded]
 
     counters: dict[str, int] = {}
     out: list[SheetRef] = []

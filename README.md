@@ -47,7 +47,10 @@ vocabulary (framing, pose, expression, what that framing cannot show).
 
 **Prompts you can edit before you render.** The Prompt tab shows and lets you edit each cell's
 prompt; edits are saved with the workflow, used as-is in per-cell mode, and can be reset to the
-generated text. One-pass mode still uses its combined sheet prompt.
+generated text. It also shows the reference pictures that pass the framing filter: uncheck a
+picture to omit it from that cell's prompt and inputs, or recheck it to restore it. These choices
+are saved per cell and apply to per-cell renders; one-pass mode still uses its combined prompt and
+full reference set.
 
 **Face blur for non-identity references.** Auto (blurs a reference whose role does not mention the
 face) / on / off per tile, three scopes (face, face + hair, whole head) and hand-painted areas for

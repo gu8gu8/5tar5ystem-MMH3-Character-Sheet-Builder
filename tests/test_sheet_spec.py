@@ -671,6 +671,35 @@ def test_framing_omits_pictures_whose_entire_role_is_out_of_shot():
     ]
 
 
+def test_cell_exclusions_use_stable_slots_and_renumber_remaining_picture_tags():
+    spec = ss.parse_sheet_spec(
+        {
+            "refs": {
+                "pictures": [
+                    {"imageFile": "disabled.jpg", "enabled": False, "role": "face"},
+                    {"imageFile": "body.jpg", "role": "body"},
+                    {"imageFile": "face.jpg", "role": "face"},
+                ]
+            },
+            "cells": [{"id": "front", "view": "front", "excludedRefs": ["pictures:2"]}],
+        }
+    )
+    cell = spec.enabled_cells[0]
+
+    candidates = ss.cell_references(spec, cell, apply_exclusions=False)
+    selected = ss.cell_references(spec, cell)
+
+    assert [ss.reference_source_id(ref) for ref in candidates] == ["pictures:1", "pictures:2"]
+    assert [(ref.file, ref.tag) for ref in selected] == [("body.jpg", "<Picture 1>")]
+    assert "<Picture 2>" not in ss.build_cell_prompt(spec, cell, refs=selected)
+    assert spec.to_dict()["cells"][0]["excludedRefs"] == ["pictures:2"]
+    restored = ss.parse_sheet_spec(spec.to_dict())
+    assert [
+        ss.reference_source_id(ref)
+        for ref in ss.cell_references(restored, restored.enabled_cells[0], apply_exclusions=False)
+    ] == ["pictures:1", "pictures:2"]
+
+
 def test_per_view_picture_keyword_allowlists_select_the_configured_roles():
     roles = ["face", "hair", "body", "breasts", "nipple", "genitals", "butt"]
     spec = ss.parse_sheet_spec(

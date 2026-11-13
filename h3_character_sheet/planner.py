@@ -40,6 +40,7 @@ from .sheet_spec import (
     continuation_keeps_scale,
     continuity_plan,
     describe_background,
+    reference_source_id,
 )
 
 #: H3 latents are 16px per token in each axis and the canvas is aligned to 32.
@@ -116,6 +117,10 @@ def cell_work_items(
     for index, cell in enumerate(spec.enabled_cells):
         width, height = cell_render_size(short_edge, str(cell.aspect or default_aspect))
         refs = cell_references(spec, cell, scope=ref_scope)
+        reference_options = cell_references(
+            spec, cell, scope=ref_scope, apply_exclusions=False
+        )
+        selected_refs = {reference_source_id(ref): ref for ref in refs}
         items.append(
             {
                 "index": index,
@@ -131,6 +136,19 @@ def cell_work_items(
                 "expression": cell.expression,
                 "continuity": int(guide_frames.get(cell.id, 0) or 0),
                 "ref_plan": reference_plan(spec, refs),
+                "reference_options": [
+                    {
+                        "id": reference_source_id(ref),
+                        "kind": ref.kind,
+                        "file": ref.file,
+                        "role": ref.role,
+                        "selected": reference_source_id(ref) in selected_refs,
+                        "tag": selected_refs[reference_source_id(ref)].tag
+                        if reference_source_id(ref) in selected_refs
+                        else "",
+                    }
+                    for ref in reference_options
+                ],
             }
         )
     return items
