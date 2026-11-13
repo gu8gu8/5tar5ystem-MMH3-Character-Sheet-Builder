@@ -662,11 +662,13 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
         ],
     }));
     const retries = [];
+    const picks = [];
     const panel = core.buildSheetInterface({
         state,
         hooks: {
             status: () => {},
             retryCell: async ({ cellId }) => { retries.push(cellId); },
+            pickFrame: async (_cellId, index) => { picks.push(index); },
         },
     });
     await tick();
@@ -674,20 +676,33 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     panel.renderResults({
         cells: [{
             id: "face-neutral-neutral",
-            frames: [{ file: "face.png", url: "/view?filename=face.png" }],
-            frameCount: 1, pickMode: "auto", pickIndex: 0, rendered: true,
+            frames: [0, 1, 2].map((index) => ({
+                file: `face-${index}.png`, url: `/view?filename=face-${index}.png`,
+            })),
+            frameCount: 3, pickMode: "auto", pickIndex: 1, rendered: true,
         }],
-        counts: { cells: 1, rendered: 1, frames: 1 },
+        counts: { cells: 1, rendered: 1, frames: 3 },
     });
     const rows = [...panel.results.querySelectorAll(".mmx-sheet-result-row")];
     assert.deepEqual(rows.map((row) => row.dataset.cell), [
         "face-neutral-neutral", "front-neutral-neutral",
     ], "the rendered cell and the unrendered selection both appear, in Cells order");
-    assert.equal(rows[0].querySelectorAll("img").length, 1, "the rendered cell keeps its preview");
-    assert.equal(rows[0].querySelector("img").loading, "lazy",
-        "off-screen frame previews load only when needed");
-    assert.equal(rows[0].querySelector("img").decoding, "async",
-        "frame previews do not block the panel while decoding");
+    assert.equal(rows[0].querySelectorAll("img").length, 1,
+        "only the picked frame is displayed as an image");
+    assert.equal(rows[0].querySelector('[data-frame-index="1"] img').alt, "frame 1");
+    assert.deepEqual(
+        [...rows[0].querySelectorAll("[data-frame-index]")]
+            .filter((tile) => !tile.querySelector("img"))
+            .map((tile) => tile.textContent),
+        ["0", "2"],
+        "other frames are lightweight numbered buttons",
+    );
+    click(rows[0].querySelector('[data-frame-index="2"]'));
+    await tick();
+    assert.deepEqual(picks, [2], "a numbered tile still picks its frame");
+    assert.equal(rows[0].querySelector('[data-frame-index="2"] img').alt, "frame 2",
+        "the picked image moves when a different frame is chosen");
+    assert.equal(rows[0].querySelector('[data-frame-index="1"]').textContent, "1");
     assert.equal(rows[1].querySelectorAll("img").length, 0, "the unrendered cell has no preview");
     assert.match(rows[1].textContent, /not generated yet/);
     click(rows[1].querySelector("[data-cell-retry]"));
@@ -1685,8 +1700,6 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
         "and its own container rule stays out of the display business - that is the bug this pins");
     assert.ok(core.PANEL_CSS.includes(".mmx-lora__switch"),
         "the row's switch needs its label styling, or the track is not clickable");
-    assert.match(core.PANEL_CSS, /\.mmx-sheet-result-row\s*\{[^}]*content-visibility:\s*auto/,
-        "off-screen result rows skip rendering work");
     ok.push("a pane's layout lives on its is-active rule (the LoRA stack cannot leak to other tabs)");
 }
 

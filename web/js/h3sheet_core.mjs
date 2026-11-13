@@ -1947,7 +1947,6 @@ button.mmx-badge:hover { border-color: var(--mmx-tick); }
   background: rgba(0,0,0,.62); padding: 1px 2px; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
-.mmx-sheet-result-row { content-visibility: auto; contain-intrinsic-size: auto 240px; }
 .mmx-sheet-result-row.is-flash { outline: 2px solid var(--mmx-tick); border-radius: 4px; }
 /* The preview's blur bar: original vs the copy the render wires. */
 .mmx-preview__bar {
@@ -7452,7 +7451,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
     // ------------------------------------------------------------ results
     let lastSheet = null;
     // What the pane is showing right now, so a pick or a rebuild can update it in place.
-    const resultRows = new Map();    // cell id -> {row, pickSpan, thumbs: Map(index -> img)}
+    const resultRows = new Map();    // cell id -> {row, pickSpan, thumbs: Map(index -> tile)}
     let resultSignature = "";
     let resultHead = null;           // {image, link, counts}
     let resultBumps = 0;
@@ -7464,11 +7463,33 @@ export function buildSheetInterface({ state, hooks = {} }) {
         return `picked frame ${cell?.pickIndex ?? "-"} (${PICK_LABELS[mode] || mode})`;
     }
 
-    /** Mark exactly one thumbnail in a row as the picked one. */
-    function markThumb(thumb, picked) {
-        thumb.style.border = picked
+    /** Mark exactly one frame tile in a row as the picked one. */
+    function markThumb(tile, picked) {
+        tile.button.style.border = picked
             ? "2px solid var(--mmx-accent)"
             : "1px solid var(--mmx-line)";
+        tile.button.setAttribute("aria-pressed", String(picked));
+    }
+
+    function syncFrameTile(tile, index, picked) {
+        if (tile.imageShown === picked) return;
+        tile.imageShown = picked;
+        if (!picked || tile.failed) {
+            tile.button.textContent = picked ? "×" : String(index);
+            return;
+        }
+        const image = element("img", {
+            src: tile.url,
+            alt: `frame ${index}`,
+            loading: "eager",
+            decoding: "async",
+        }, { width: "100%", height: "100%", objectFit: "cover" });
+        image.addEventListener("error", () => {
+            tile.failed = true;
+            if (tile.imageShown) tile.button.textContent = "×";
+            tile.button.title = `could not load ${tile.file || "frame"}`;
+        });
+        tile.button.replaceChildren(image);
     }
 
     /** A URL the browser cannot answer from its cache (a rebuild inside the same second). */
@@ -7525,7 +7546,11 @@ export function buildSheetInterface({ state, hooks = {} }) {
         const parts = resultRows.get(cell?.id);
         if (!parts) return;
         parts.pickSpan.textContent = pickText(cell);
-        for (const [index, thumb] of parts.thumbs) markThumb(thumb, index === cell.pickIndex);
+        for (const [index, tile] of parts.thumbs) {
+            const picked = index === cell.pickIndex;
+            syncFrameTile(tile, index, picked);
+            markThumb(tile, picked);
+        }
     }
     /**
      * Which sheet of a suite run the panel is working on.
@@ -7897,35 +7922,37 @@ export function buildSheetInterface({ state, hooks = {} }) {
                         display: "flex", alignItems: "center", justifyContent: "center" }));
                     return;
                 }
-                const thumb = element("img", {
-                    src: url,
+                const tileButton = element("button", {
+                    type: "button",
+                    textContent: String(index),
                     title: `frame ${index} — click to use it`,
-                    loading: "lazy",
-                    decoding: "async",
                 }, {
-                    width: "54px", height: "54px", objectFit: "cover", cursor: "pointer",
+                    width: "54px", height: "54px", cursor: "pointer",
                     border: "1px solid var(--mmx-line)",
                     borderRadius: "4px",
+                    padding: "0",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--mmx-fg)",
+                    background: "var(--mmx-card-2)",
                 });
-                parts.thumbs.set(index, thumb);
-                markThumb(thumb, index === cell.pickIndex);
-                thumb.addEventListener("error", () => {
-                    // The file is gone or unreadable: say it instead of showing the
-                    // browser's broken-image glyph.
-                    const note = element("div", {
-                        className: "mmx-muted",
-                        textContent: "×",
-                        title: `could not load ${frame.file || "frame"}`,
-                    }, { width: "54px", height: "54px", borderRadius: "4px", border: "1px dashed var(--mmx-line)",
-                        display: "flex", alignItems: "center", justifyContent: "center" });
-                    thumb.replaceWith(note);
-                });
-                thumb.addEventListener("click", async () => {
+                tileButton.setAttribute("aria-label", `Use frame ${index}`);
+                tileButton.dataset.frameIndex = String(index);
+                const tile = { button: tileButton, url, file: frame.file, imageShown: false, failed: false };
+                parts.thumbs.set(index, tile);
+                syncFrameTile(tile, index, index === cell.pickIndex);
+                markThumb(tile, index === cell.pickIndex);
+                tileButton.addEventListener("click", async () => {
                     // The composite happens on the server (compose + PNG), so mark the click NOW:
                     // waiting for the answer made a click look ignored for a second or more.
                     // The label is a promise the response then keeps or takes back.
                     const previousLabel = parts.pickSpan.textContent;
-                    for (const [otherIndex, other] of parts.thumbs) markThumb(other, otherIndex === index);
+                    for (const [otherIndex, other] of parts.thumbs) {
+                        const picked = otherIndex === index;
+                        syncFrameTile(other, otherIndex, picked);
+                        markThumb(other, picked);
+                    }
                     parts.pickSpan.textContent = `picking frame ${index}…`;
                     notify(`picking ${cell.id} frame ${index}…`);
                     try {
@@ -7950,7 +7977,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
                         notify(`pick failed: ${error.message}`);
                     }
                 });
-                strip.append(thumb);
+                strip.append(tileButton);
             });
             if (!(cell.frames || []).length) {
                 strip.append(element("span", {
