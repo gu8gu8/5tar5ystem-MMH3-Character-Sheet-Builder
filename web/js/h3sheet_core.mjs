@@ -7391,6 +7391,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
 
     /** The "picked frame N (mode)" sentence - and honest about a hand-picked frame. */
     function pickText(cell) {
+        if (!cell?.rendered) return "not generated yet";
         const mode = String(cell?.pickMode || "auto");
         return `picked frame ${cell?.pickIndex ?? "-"} (${PICK_LABELS[mode] || mode})`;
     }
@@ -7423,6 +7424,32 @@ export function buildSheetInterface({ state, hooks = {} }) {
         }
         if (resultHead.link && shown.sheetUrl) resultHead.link.href = viewUrl(shown.sheetUrl);
         if (resultHead.counts) resultHead.counts.textContent = countsText(shown);
+    }
+
+    /** The Results list follows the current Cells selection, with any saved render data merged in. */
+    function cellsForResults(sheet) {
+        const selected = state.cells?.length ? state.cells : plannedCellsFromTicks();
+        const listed = Array.isArray(sheet?.cells) ? sheet.cells : [];
+        const byId = new Map(listed.map((cell) => [String(cell.id || ""), cell]));
+        return selected.map((cell) => {
+            const rendered = byId.get(String(cell.id || ""));
+            const frames = Array.isArray(rendered?.frames) ? rendered.frames : [];
+            const frameCount = rendered?.frameCount == null
+                ? frames.length
+                : Number(rendered.frameCount) || 0;
+            return {
+                ...(rendered || {}),
+                ...cell,
+                frames,
+                frameCount,
+                pickMode: rendered?.pickMode || "",
+                pickIndex: rendered?.pickIndex ?? 0,
+                rendered: Boolean(rendered?.rendered || frameCount),
+                cellUrl: rendered?.cellUrl || "",
+                clipUrl: rendered?.clipUrl || "",
+                clipFile: rendered?.clipFile || "",
+            };
+        });
     }
 
     /** One row's pick label and border - the only things a pick changes. */
@@ -7569,8 +7596,19 @@ export function buildSheetInterface({ state, hooks = {} }) {
 
     function renderResults(sheet, { light = false } = {}) {
         if (sheet !== undefined) lastSheet = sheet;
-        const shown = lastSheet;
-        if (!shown || !Array.isArray(shown.cells) || !shown.cells.length) {
+        const listed = lastSheet && typeof lastSheet === "object" ? lastSheet : {};
+        const cells = cellsForResults(listed);
+        const shown = {
+            ...listed,
+            cells,
+            counts: {
+                ...(listed.counts || {}),
+                cells: cells.length,
+                rendered: cells.filter((cell) => cell.rendered).length,
+                frames: cells.reduce((total, cell) => total + cell.frameCount, 0),
+            },
+        };
+        if (!shown.cells.length) {
             // Nothing to show. Always repainted, light or not: this is the state Clear sheet
             // leaves behind, and a stale list of thumbnails would be worse than a redraw.
             results.replaceChildren();
@@ -7589,7 +7627,9 @@ export function buildSheetInterface({ state, hooks = {} }) {
             return;
         }
         const signature = `${shown.sheetFile || ""}#`
-            + shown.cells.map((cell) => `${cell.id}:${cell.frameCount}`).join("|");
+            + shown.cells.map((cell) => [
+                cell.id, cell.view, cell.pose, cell.expression, cell.frameCount, cell.rendered,
+            ].join(":")).join("|");
         if (light && resultHead && signature === resultSignature) {
             // Same cells, same frames on disk: a pick or a rebuild only moves one border, one
             // label and the sheet image. Rebuilding the pane instead re-created every thumbnail
@@ -7706,6 +7746,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
 
         for (const cell of shown.cells) {
             const row = element("div", { className: "mmx-sheet-result-row" }, { marginBottom: "3px" });
+            row.dataset.cell = cell.id;
             const caption = element("div", { className: "mmx-muted" });
             const pickSpan = element("span", {
                 textContent: pickText(cell),
@@ -7838,7 +7879,10 @@ export function buildSheetInterface({ state, hooks = {} }) {
                 strip.append(thumb);
             });
             if (!(cell.frames || []).length) {
-                strip.append(element("span", { textContent: "no frames", className: "mmx-muted" }));
+                strip.append(element("span", {
+                    textContent: cell.rendered ? "no frames" : "not generated yet",
+                    className: "mmx-muted",
+                }));
             }
             row.append(strip);
             results.append(row);
@@ -7979,6 +8023,10 @@ export function buildSheetInterface({ state, hooks = {} }) {
         }
         const id = String(cellId || "");
         if (!id) return;
+        if (!state.cells?.length) {
+            state.cells = plannedCellsFromTicks();
+            persist();
+        }
         if (trigger) trigger.disabled = true;
         notify(`re-rendering ${id} with a new seed…`);
         try {
@@ -8195,6 +8243,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
         // The prompt preview depends on the cells, the references and the node's
         // reference scope, so it is re-fetched whenever any of them changes.
         if (activeTab === "cells" || activeTab === "prompts") refreshPlan();
+        renderResults(lastSheet, { light: true });
     }
 
     // Escape closes an overlay so the panel never traps the canvas.

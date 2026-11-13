@@ -78,6 +78,9 @@ Written to
 the cell being denoised (decoded on the CPU, so it never competes with the sampler), and
 **↻ new seed** cancels the run to render *that one cell* again with a fresh seed - the other cells
 keep the frames they already have. On by default; see [the live strip](#the-live-strip-a-looping-clip-per-sampling-step).
+The **Results** tab always lists the selected cells, even before they have rendered: their previews
+stay empty until generated, and **new seed** can render any one of them. Adding a framing in **Cells**
+adds its empty, rerollable row immediately.
 
 ## Screenshots
 

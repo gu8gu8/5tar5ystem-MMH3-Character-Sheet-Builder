@@ -592,6 +592,11 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     });
     await tick();
     tickPanel.showTab("cells");
+    const resultCellIds = () => [...tickPanel.results.querySelectorAll("[data-cell-retry]")]
+        .map((button) => button.dataset.cellRetry);
+    assert.deepEqual(resultCellIds(), [
+        "face-neutral-neutral", "front-neutral-neutral", "back-neutral-neutral",
+    ], "Results shows the tick selection even before anything has rendered");
     const pane = tickPanel.container.querySelector(".mmx-pane--cells");
     const views = () => [...pane.querySelectorAll(".mmx-cellbox__view")].map((n) => n.textContent);
     assert.deepEqual(views(), ["Face · Neutral", "front · Neutral", "back · Neutral"],
@@ -603,6 +608,8 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     await tick();
     assert.deepEqual(views(), ["Face · Neutral", "front · Neutral"],
         "unticking a framing removes its panel");
+    assert.deepEqual(resultCellIds(), ["face-neutral-neutral", "front-neutral-neutral"],
+        "Results follows the smaller current selection");
     assert.ok(!tickState.cells.some((cell) => cell.view === "back"),
         "and the cell list the payload sends says so");
     // Tick "back of head": its panel appears, in tick order.
@@ -612,6 +619,15 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     await tick();
     assert.deepEqual(views(), ["Face · Neutral", "front · Neutral", "Back of head"],
         "ticking a new framing adds its panel");
+    assert.deepEqual(resultCellIds(), [
+        "face-neutral-neutral", "front-neutral-neutral", "head-back-neutral-neutral",
+    ], "the new framing immediately gets an empty Results row and new-seed button");
+    assert.match(
+        tickPanel.results.querySelector('[data-cell-retry="head-back-neutral-neutral"]')
+            .closest(".mmx-sheet-result-row").textContent,
+        /not generated yet/,
+        "the empty row clearly has no preview until it is generated",
+    );
     assert.deepEqual(core.toPayload(tickState).cells.map((cell) => cell.id),
         ["face-neutral-neutral", "front-neutral-neutral", "head-back-neutral-neutral"],
         "and the payload follows the ticks");
@@ -635,6 +651,71 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     assert.equal(tickState.cells[0].id, "face-neutral-neutral", "on the same panel");
     tickPanel.dispose();
     ok.push("the ticks own the panel list: untick removes, tick adds, hand-made panels stay");
+}
+
+// --- Results merges the selected cells with whatever has rendered -----------------------------
+{
+    const state = core.readState(JSON.stringify({
+        cells: [
+            { id: "face-neutral-neutral", view: "face", pose: "neutral", expression: "neutral" },
+            { id: "front-neutral-neutral", view: "front", pose: "neutral", expression: "neutral" },
+        ],
+    }));
+    const retries = [];
+    const panel = core.buildSheetInterface({
+        state,
+        hooks: {
+            status: () => {},
+            retryCell: async ({ cellId }) => { retries.push(cellId); },
+        },
+    });
+    await tick();
+    panel.showTab("results");
+    panel.renderResults({
+        cells: [{
+            id: "face-neutral-neutral",
+            frames: [{ file: "face.png", url: "/view?filename=face.png" }],
+            frameCount: 1, pickMode: "auto", pickIndex: 0, rendered: true,
+        }],
+        counts: { cells: 1, rendered: 1, frames: 1 },
+    });
+    const rows = [...panel.results.querySelectorAll(".mmx-sheet-result-row")];
+    assert.deepEqual(rows.map((row) => row.dataset.cell), [
+        "face-neutral-neutral", "front-neutral-neutral",
+    ], "the rendered cell and the unrendered selection both appear, in Cells order");
+    assert.equal(rows[0].querySelectorAll("img").length, 1, "the rendered cell keeps its preview");
+    assert.equal(rows[1].querySelectorAll("img").length, 0, "the unrendered cell has no preview");
+    assert.match(rows[1].textContent, /not generated yet/);
+    click(rows[1].querySelector("[data-cell-retry]"));
+    await tick();
+    assert.deepEqual(retries, ["front-neutral-neutral"],
+        "new seed targets the selected cell with no prior render");
+    panel.dispose();
+    ok.push("Results keeps unrendered selected cells actionable beside rendered cells");
+}
+
+// --- a result reroll materialises the tick selection when no cell list was built ---------------
+{
+    const state = core.readState("");
+    const retries = [];
+    const panel = core.buildSheetInterface({
+        state,
+        hooks: {
+            status: () => {},
+            retryCell: async ({ cellId }) => { retries.push(cellId); },
+        },
+    });
+    await tick();
+    const retry = panel.results.querySelector("[data-cell-retry]");
+    assert.ok(retry, "the tick-derived default cells are available before Build cells");
+    click(retry);
+    await tick();
+    assert.deepEqual(retries, [retry.dataset.cellRetry],
+        "the result button can reroll a tick-derived cell");
+    assert.ok(state.cells.some((cell) => cell.id === retry.dataset.cellRetry),
+        "the selected cells are materialised before the reroll is queued");
+    panel.dispose();
+    ok.push("a tick-derived result can be rerolled before Build cells");
 }
 
 // --- the node's floor is a size the design still works at -----------------------
@@ -865,8 +946,11 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     assert.equal(chips[1].classList.contains("is-on"), false);
     assert.match(chips[0].title, /5 cell\(s\)/);
     assert.match(chips[1].title, /not rendered yet/, "a board that never landed says so");
-    // A board with nothing on disk yet reads as that, not as a broken render.
-    assert.match(suitePanel.results.lastElementChild.textContent, /This board has not rendered yet/);
+    // A board with nothing on disk yet still shows the selected cells as empty, actionable rows.
+    const emptyRows = [...suitePanel.results.querySelectorAll(".mmx-sheet-result-row")];
+    assert.ok(emptyRows.length > 0, "the current selection is visible before a board has rendered");
+    assert.ok(emptyRows.every((cell) => /not generated yet/.test(cell.textContent)),
+        "unrendered board cells have empty previews rather than disappearing");
     // Clicking a board asks the route for THAT board and remembers the choice in the payload.
     click(chips[1]);
     await tick();
