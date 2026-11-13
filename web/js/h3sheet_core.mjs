@@ -1947,6 +1947,7 @@ button.mmx-badge:hover { border-color: var(--mmx-tick); }
   background: rgba(0,0,0,.62); padding: 1px 2px; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
+.mmx-sheet-result-row { content-visibility: auto; contain-intrinsic-size: auto 240px; }
 .mmx-sheet-result-row.is-flash { outline: 2px solid var(--mmx-tick); border-radius: 4px; }
 /* The preview's blur bar: original vs the copy the render wires. */
 .mmx-preview__bar {
@@ -7742,6 +7743,8 @@ export function buildSheetInterface({ state, hooks = {} }) {
                     src: viewUrl(shown.sheetUrl),
                     className: "mmx-sheet-preview",
                     title: `${shown.sheetFile || "sheet"} - click to open it full size`,
+                    loading: "lazy",
+                    decoding: "async",
                 }, height
                     ? { maxHeight: `${height}px`, width: "auto", maxWidth: "100%" }
                     : { width: "100%", height: "auto" });
@@ -7778,7 +7781,9 @@ export function buildSheetInterface({ state, hooks = {} }) {
                     });
                     item.dataset.cell = cell.id;
                     if (url) {
-                        item.append(element("img", { src: url, alt: cell.id }, {
+                        item.append(element("img", {
+                            src: url, alt: cell.id, loading: "lazy", decoding: "async",
+                        }, {
                             width: "100%", height: "100%", objectFit: "cover",
                         }));
                     } else {
@@ -7895,6 +7900,8 @@ export function buildSheetInterface({ state, hooks = {} }) {
                 const thumb = element("img", {
                     src: url,
                     title: `frame ${index} — click to use it`,
+                    loading: "lazy",
+                    decoding: "async",
                 }, {
                     width: "54px", height: "54px", objectFit: "cover", cursor: "pointer",
                     border: "1px solid var(--mmx-line)",

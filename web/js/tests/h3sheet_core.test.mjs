@@ -684,6 +684,10 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
         "face-neutral-neutral", "front-neutral-neutral",
     ], "the rendered cell and the unrendered selection both appear, in Cells order");
     assert.equal(rows[0].querySelectorAll("img").length, 1, "the rendered cell keeps its preview");
+    assert.equal(rows[0].querySelector("img").loading, "lazy",
+        "off-screen frame previews load only when needed");
+    assert.equal(rows[0].querySelector("img").decoding, "async",
+        "frame previews do not block the panel while decoding");
     assert.equal(rows[1].querySelectorAll("img").length, 0, "the unrendered cell has no preview");
     assert.match(rows[1].textContent, /not generated yet/);
     click(rows[1].querySelector("[data-cell-retry]"));
@@ -1681,6 +1685,8 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
         "and its own container rule stays out of the display business - that is the bug this pins");
     assert.ok(core.PANEL_CSS.includes(".mmx-lora__switch"),
         "the row's switch needs its label styling, or the track is not clickable");
+    assert.match(core.PANEL_CSS, /\.mmx-sheet-result-row\s*\{[^}]*content-visibility:\s*auto/,
+        "off-screen result rows skip rendering work");
     ok.push("a pane's layout lives on its is-active rule (the LoRA stack cannot leak to other tabs)");
 }
 
