@@ -623,16 +623,15 @@ def test_the_vocabulary_reads_clothes_and_the_body_words():
         assert ss.reference_attributes(word) == set(), f"{word!r} is not an attribute"
 
 
-def test_an_anatomy_reference_owns_the_body_and_must_not_supply_the_face():
+def test_an_anatomy_reference_owns_the_body_and_blur_still_hides_its_face():
     """The pair this was asked for: a face picture plus a nude body picture."""
     spec = _anatomy_pair(view="front")
     legend = ss.reference_legend(spec)
     assert "<Picture 2> is the sole source of the breasts and the intimate anatomy." in legend
     prompt = ss.build_cell_prompt(spec, spec.cells[0])
     assert "Take the breasts and the intimate anatomy only from <Picture 2>." in prompt
-    assert "<Picture 1> must not change the breasts and the intimate anatomy." in prompt
-    assert "<Picture 2> must not change the face and the hair" in prompt
-    assert "the person visible in it is not the identity, do not copy their face" in prompt
+    assert "<Picture 1> must not" not in prompt
+    assert "<Picture 2> must not" not in prompt
     # The nude picture is a whole second person, so auto blur takes its face out.
     assert ss.blur_face_decisions(spec)[("picture", 1)] == "blur"
 
@@ -975,35 +974,21 @@ def test_a_cell_face_reference_is_kept_and_numbered_with_its_filtered_subset():
     assert ss.reference_attributes("tops, boots") == {"clothing", "shoes"}, "plurals still land"
 
 
-def test_each_picture_is_told_what_it_supplies_and_what_it_must_not():
+def test_each_picture_is_told_what_it_supplies_without_negative_picture_rules():
     spec = _two_ref_spec(view="front")
     prompt = ss.build_cell_prompt(spec, spec.cells[0])
     assert "Take the face, the glasses and the hair only from <Picture 1>." in prompt
     assert "Take the clothing and the body proportions only from <Picture 2>." in prompt
-    # The prohibitions are the hardening: the portrait wore picture 1's top because
-    # nothing said picture 1 may not supply clothing.
-    assert "<Picture 1> must not change the body proportions and the clothing." in prompt
-    assert "<Picture 2> must not change the face, the glasses and the hair" in prompt
+    assert "<Picture 1> must not" not in prompt
+    assert "<Picture 2> must not" not in prompt
     assert "the identity comes from <Picture 1> and from no other reference" in prompt
 
 
-def test_a_non_identity_reference_is_told_not_to_supply_a_face():
-    """The outfit photo is a whole second person, so say its face is not the identity.
-
-    Naming the owner of the face is not enough on its own: a complete second person in
-    the reference set is a complete second identity, which is how the full-body cells
-    ended up wearing picture 2's face. This is the sentence that names the failure.
-    """
+def test_a_non_identity_reference_gets_no_negative_picture_rule():
     spec = _two_ref_spec(view="portrait")
     prompt = ss.build_cell_prompt(spec, spec.cells[0])
-    assert (
-        "must not supply a face, a hairstyle, hair colour, hair length, skin tone or facial features" in prompt
-    )
-    assert "the person visible in it is not the identity, do not copy their face" in prompt
-    assert "<Picture 2> must not change the face, the glasses and the hair, and must not supply" in prompt
-    # The identity picture supplies the face, so it is never told not to.
-    assert "<Picture 1> must not supply a face" not in prompt
-    # And the last thing the sampler reads is the identity restatement.
+    assert "<Picture 1> must not" not in prompt
+    assert "<Picture 2> must not" not in prompt
     assert prompt.rstrip().endswith(
         "Identity: the face and the hair in this image come from <Picture 1> and from "
         "no other reference - do not blend them with the face of another reference."
@@ -1046,7 +1031,7 @@ def test_the_outfit_is_pinned_to_its_reference():
     assert "fully dressed - nothing removed, opened, shortened or swapped" in framing
     # a from-behind cell cannot match glasses nobody can see
     assert "glasses" not in framing
-    assert "<Picture 2> must not change the hair," in framing
+    assert "<Picture 2> must not" not in framing
 
 
 def test_the_face_close_up_is_not_told_about_the_outfit():
@@ -1128,9 +1113,7 @@ def test_a_reference_without_a_role_claims_nothing():
     prompt = ss.build_cell_prompt(spec, spec.cells[0])
     assert "Take the clothing only from <Picture 2>." in prompt
     assert "Use <Picture 1> for" not in prompt, "an empty role must not invent a claim"
-    # the picture that claims the clothing is the only source for it, so the
-    # role-less one must not change it either
-    assert "<Picture 1> must not change the clothing." in prompt
+    assert "<Picture 1> must not" not in prompt
 
 
 def test_one_picture_that_supplies_everything_needs_no_prohibitions():
@@ -1166,7 +1149,7 @@ def test_cell_prompt_order_and_content():
     assert "Take the clothing only from <Video 1>." in framing
     # two references claim the body, so it is a "match", not an owner
     assert "Match the body proportions to <Picture 2> and <Video 1>." in framing
-    assert "<Picture 1> must not change the clothing." in framing
+    assert "<Picture 1> must not" not in framing
     assert "Reference rule: the references are static" in framing
     assert "no watermark" in framing
 

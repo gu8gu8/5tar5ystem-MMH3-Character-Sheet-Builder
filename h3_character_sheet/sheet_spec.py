@@ -2251,18 +2251,6 @@ _HAIR_HOLDS_BY_VIEW: dict[str, str] = {
 #: the distinction the outfit-photo case turns on.
 LIKENESS_ATTRIBUTES: tuple[str, ...] = ("face", "eyes", "hair")
 
-#: The sentence that does the work, taken from the ref2va renders that behave - the
-#: reference docs in this pack use the same list ("must not supply a face, hair, body
-#: shape, skin tone, background or framing"). Asking a picture to "supply clothing
-#: only" is too abstract for the model; naming the parts of a face it must not lend
-#: is what it can act on.
-_LIKENESS_BAN = (
-    "must not supply a face, a hairstyle, hair colour, hair length, skin tone or facial "
-    "features - the person visible in it is not the identity, do not copy their face or "
-    "their hair"
-)
-
-
 #: Suffixes a keyword may carry and still mean the same attribute (plural / gerund).
 _KEYWORD_SUFFIXES = ("", "s", "es", "ing", "ed")
 
@@ -2438,17 +2426,10 @@ def attribution_lines(
     H3 conditions on every reference at once, so a prompt that only says "keep the
     person as shown in <Picture 1>, <Picture 2>" invites a blend: the outfit of the
     face picture leaks into a body cell, the hair bow of the clothing picture into a
-    face cell. Naming the owner of each attribute AND forbidding the other pictures
-    from supplying it is the cheap, deterministic lever against that.
+    face cell. Naming the owner of each attribute is the prompt's reference guidance.
 
-    Wording follows the ref2va prompts that behave (see the pack's character-replace
-    docs): ownership is exclusive ("Take the face and the hair only from
-    ``<Picture 1>``."), and a reference demoted to carrying something other than
-    likeness is told outright that the person visible in it is not the identity and
-    its face must not be copied. That last sentence is the one that stopped an outfit
-    photo lending its model's face to a full-body cell - telling the model which
-    picture owns the face is not enough, because a complete second person is a
-    complete second identity.
+    Ownership is exclusive ("Take the face and the hair only from ``<Picture 1>``.")
+    when one reference claims an attribute.
 
     ``refs`` is the set this cell will actually be sent (see :func:`cell_references`);
     only those are named, so the prompt can never talk about a picture the run did not
@@ -2501,34 +2482,6 @@ def attribution_lines(
             lines.append(f"Use {tag} for {_join(labels)}.")
     if shared:
         lines.append(f"Match {_join(shared)}.")
-
-    # An attribute exactly one picture owns is a prohibition for every other picture:
-    # that is what stops the outfit arriving from the face picture.
-    likeness_owners = {
-        ref.tag for ref in refs if reference_attributes(ref.role) & set(LIKENESS_ATTRIBUTES)
-    }
-    if many:
-        for ref in refs:
-            forbidden = sorted(
-                {
-                    label
-                    for tag, labels in owner_of.items()
-                    if tag != ref.tag
-                    for label in labels
-                }
-            )
-            claimed = reference_attributes(ref.role)
-            parts: list[str] = []
-            if forbidden:
-                parts.append(f"must not change {_join(forbidden)}")
-            # Only for a reference the prompt itself demoted to a non-likeness job,
-            # and only when some other reference does own the likeness: a role nobody
-            # can read must never be told it is "not the identity", and a pair where
-            # no picture claims the face keeps the plain prohibitions.
-            if claimed and likeness_owners and ref.tag not in likeness_owners:
-                parts.append(_LIKENESS_BAN)
-            if parts:
-                lines.append(f"{ref.tag} " + ", and ".join(parts) + ".")
 
     clothing_owners = supplied.get("clothing")
     if clothing_owners and "clothing" not in hidden:

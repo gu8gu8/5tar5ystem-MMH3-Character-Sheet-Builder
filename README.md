@@ -907,13 +907,8 @@ Plurals count (`tops`, `clothes`), and a keyword only matches the **whole** word
 or gerund ending: `topic` is not `top` and `titles` is not `tit`.
 
 * A reference that is the **only** enabled claimant of an attribute is called its *sole source*
-  (`<Picture 1> (head, face, hair) is the sole source of the face and the hair.`), and every
-  other reference is then told it `must not change` that attribute. Two references claiming the
-  same thing drops the word *sole* - which is the point: it names the blend instead of allowing
-  it.
-* A reference demoted to a non-likeness job (clothes, body) is also told outright that
-  `the person visible in it is not the identity, do not copy their face`, because a
-  full-length reference photo is a whole second person.
+  (`<Picture 1> (head, face, hair) is the sole source of the face and the hair.`). Ownership is
+  stated positively in the prompt; two references claiming the same thing drops the word *sole*.
 * Words the vocabulary does not read (`head`, `elf ears`) are kept in brackets next to the tag,
   so your own description still reaches the model; a role it understands completely is not
   repeated.
@@ -929,10 +924,8 @@ H3 conditions on every reference it is given at once and has **no per-reference
 weight**. A prompt can therefore *ask* for "identity from `@image1`, clothing from
 `@image2`", but it cannot stop the model reading a face that is present in the pixels -
 and a full-body outfit photo is a whole second person, so it is a whole second identity.
-The prompts name that outright ("`<Picture 2>` must not supply a face, a hairstyle, hair
-colour, hair length, skin tone or facial features - the person visible in it is not the
-identity, do not copy their face or their hair"). The **face
-blur** removes it instead of arguing with it.
+The **face blur** removes it from the reference instead of asking the prompt to override
+those pixels.
 
 **A side or back view holds the hairstyle.** A front-facing identity picture says nothing about
 the side or the back of a head, and the second reference - usually a full-body photo of somebody
