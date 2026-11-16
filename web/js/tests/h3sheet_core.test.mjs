@@ -1748,6 +1748,10 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
 // --- per-cell prompt references can be included or excluded -------------------------------
 {
     const promptState = core.readState(JSON.stringify({
+        refs: { pictures: [
+            { imageFile: "face.png", role: "face and hair" },
+            { imageFile: "outfit.png", role: "clothing" },
+        ] },
         cells: [{ id: "front", view: "front" }],
     }));
     const savedPayloads = [];
@@ -1757,20 +1761,30 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
             stateChanged: (payload) => savedPayloads.push(payload),
             status: () => {},
             planCells: async () => {
-                const excluded = (promptState.cells[0].excludedRefs || []).includes("pictures:0");
+                const excluded = new Set(promptState.cells[0].excludedRefs || []);
+                const options = [
+                    { id: "pictures:0", file: "h3_character_sheet/face.png", role: "face and hair" },
+                    { id: "pictures:1", file: "h3_character_sheet/outfit.png", role: "clothing" },
+                ];
+                let ordinal = 0;
+                const referenceOptions = options.map((reference) => {
+                    const selected = !excluded.has(reference.id);
+                    return {
+                        ...reference,
+                        kind: "picture",
+                        selected,
+                        tag: selected ? `<Picture ${++ordinal}>` : "",
+                    };
+                });
+                const tags = referenceOptions
+                    .filter((reference) => reference.selected)
+                    .map((reference) => reference.tag);
                 return {
                     cells: [{
                         id: "front",
-                        prompt: excluded ? "No face reference" : "Use <Picture 1>",
-                        refs: excluded ? [] : ["<Picture 1>"],
-                        referenceOptions: [{
-                            id: "pictures:0",
-                            kind: "picture",
-                            file: "h3_character_sheet/face.png",
-                            role: "face and hair",
-                            selected: !excluded,
-                            tag: excluded ? "" : "<Picture 1>",
-                        }],
+                        prompt: `Use ${tags.join(" and ")} in reference order`,
+                        refs: tags,
+                        referenceOptions,
                     }],
                 };
             },
@@ -1794,16 +1808,102 @@ ok.push("blur area: face / face + hair / whole head, as chips under the picture,
     assert.deepEqual(savedPayloads.at(-1).cells[0].excludedRefs, ["pictures:0"],
         "the per-cell exclusion is saved with the workflow");
     assert.equal(promptPanel.container.querySelector(".mmx-prompt__ref-check").checked, false);
-    assert.equal(promptPanel.container.querySelector(".mmx-prompt__editor").value, "No face reference");
+    assert.equal(
+        promptPanel.container.querySelector(".mmx-prompt__editor").value,
+        "Use <Picture 1> in reference order",
+        "the remaining image is renumbered in the refreshed prompt",
+    );
+    assert.match(
+        promptPanel.container.querySelectorAll(".mmx-prompt__ref-caption")[1].textContent,
+        /^<Picture 1>/,
+        "the reference caption uses the same updated number as the prompt",
+    );
 
-    checkbox = promptPanel.container.querySelector(".mmx-prompt__ref-check");
+    checkbox = promptPanel.container.querySelectorAll(".mmx-prompt__ref-check")[0];
     checkbox.checked = true;
     checkbox.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
     await tick();
     assert.equal(promptState.cells[0].excludedRefs, undefined, "re-checking clears the exclusion");
-    assert.equal(promptPanel.container.querySelector(".mmx-prompt__editor").value, "Use <Picture 1>");
+    assert.equal(
+        promptPanel.container.querySelector(".mmx-prompt__editor").value,
+        "Use <Picture 1> and <Picture 2> in reference order",
+        "checking it again restores the two reference numbers",
+    );
     promptPanel.dispose();
-    ok.push("Prompt-tab reference checkboxes persist and refresh the per-cell plan");
+    ok.push("Prompt-tab checkboxes refresh prompt and reference tags after selection changes");
+}
+
+// --- stale Prompt-tab plans cannot overwrite the latest reference selection ------------------
+{
+    const promptState = core.readState(JSON.stringify({
+        refs: { pictures: [
+            { imageFile: "face.png", role: "face and hair" },
+            { imageFile: "outfit.png", role: "clothing" },
+        ] },
+        cells: [{ id: "front", view: "front" }],
+    }));
+    const requests = [];
+    const makePlan = (excluded) => {
+        const options = [
+            { id: "pictures:0", file: "face.png", role: "face and hair" },
+            { id: "pictures:1", file: "outfit.png", role: "clothing" },
+        ];
+        let ordinal = 0;
+        const referenceOptions = options.map((reference) => {
+            const selected = !excluded.has(reference.id);
+            return {
+                ...reference,
+                kind: "picture",
+                selected,
+                tag: selected ? `<Picture ${++ordinal}>` : "",
+            };
+        });
+        const tags = referenceOptions
+            .filter((reference) => reference.selected)
+            .map((reference) => reference.tag);
+        return {
+            cells: [{
+                id: "front",
+                prompt: tags.length ? `Use ${tags.join(" and ")}` : "No references",
+                refs: tags,
+                referenceOptions,
+            }],
+        };
+    };
+    const promptPanel = core.buildSheetInterface({
+        state: promptState,
+        hooks: {
+            status: () => {},
+            planCells: () => {
+                const excluded = new Set(promptState.cells[0].excludedRefs || []);
+                return new Promise((resolve) => requests.push({ resolve, plan: makePlan(excluded) }));
+            },
+        },
+    });
+    await tick();
+    promptPanel.showTab("prompts");
+    await tick();
+    for (const request of requests) request.resolve(request.plan);
+    await tick();
+
+    const checkboxes = promptPanel.container.querySelectorAll(".mmx-prompt__ref-check");
+    checkboxes[0].checked = false;
+    checkboxes[0].dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    checkboxes[1].checked = false;
+    checkboxes[1].dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    const newest = requests[requests.length - 1];
+    const stale = requests[requests.length - 2];
+    newest.resolve(newest.plan);
+    await tick();
+    stale.resolve(stale.plan);
+    await tick();
+    assert.equal(
+        promptPanel.container.querySelector(".mmx-prompt__editor").value,
+        "No references",
+        "a late response for the earlier selection cannot restore obsolete Picture tags",
+    );
+    promptPanel.dispose();
+    ok.push("out-of-order Prompt-tab plans cannot restore stale reference numbering");
 }
 
 // --- excluded references follow their pictures when the reference slots are reordered ----

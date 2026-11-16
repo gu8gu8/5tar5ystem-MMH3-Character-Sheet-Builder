@@ -7320,6 +7320,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
     // read here is exactly what the render sends, including which references that
     // cell is wired with.
     let planCells = [];
+    let planRequest = 0;
 
     /** Every reference the RUN sends, as H3 tags (``<Picture 1>`` and friends). */
     function runRefTags() {
@@ -7440,10 +7441,13 @@ export function buildSheetInterface({ state, hooks = {} }) {
     }
 
     async function refreshPlan() {
+        const request = ++planRequest;
         try {
             const payload = await hooks.planCells?.();
+            if (request !== planRequest) return;
             renderPlan(payload);
         } catch (error) {
+            if (request !== planRequest) return;
             notify(`prompt preview unavailable: ${error.message}`);
         }
     }
