@@ -39,7 +39,7 @@ nothing else.
 * **Latent continuation between cells** so a row reads as one take instead of unrelated frames (*Auto* only chains cells that share a camera distance).
 * **Presets.** Two shipped full-sheet presets (balanced / fidelity) plus your own, saved into ComfyUI's user folder.
 * **Composited sheet + the takes it came from**: the sheet with captions, per-cell picked stills, *every* frame of every cell, and each cell's clip with the audio H3 generated. Re-picking a frame and re-compositing costs no GPU time.
-* **Watch it render, re-roll one cell.** A **LIVE** strip above the tabs plays a looping clip of the cell being denoised (`cell 2/5 · step 4/8 · 22-frame loop`), and **↻ new seed** stops the run to render *that one cell* again with a fresh seed - the other cells keep the frames they already have.
+* **Watch it render, re-roll one cell.** A **LIVE** strip above the tabs plays a looping clip of the cell being denoised (`cell 2/5 · step 4/8 · 22-frame loop`), and **↻ new seed** queues *that one cell* to render again with a fresh seed after the current run finishes - the other cells keep the frames they already have.
 * **Export the sheet as a RefMod - appearance *and* voice.** With [ComfyUI-MiniMaxH3Mod](https://github.com/Luisacaotica/ComfyUI-MiniMaxH3Mod) installed, the **H3 Sheet → RefMod** node writes one bundle: your picked cells stacked (a multi-view identity board), optionally the composite sheet as a second member, and a voice member taken from the audio H3 generated with a cell or from a clip you connect. A checkbox controls whether the composite is included. No training - a RefMod is a small no-training adapter that rides H3's own reference path, so a sheet you already like becomes a reusable reference in one queue.
 
 ## Turn the sheet into a RefMod (appearance + voice)
@@ -108,7 +108,7 @@ Nothing else to install: no other custom node pack is needed. The node's **Help*
 ## Honest limits
 
 * The live strip decodes on the **CPU** so it can never slow or crash a render - which is why, on a very large cell, you get fewer frames (or a single still) rather than a longer loop.
-* A **re-roll cancels the run it replaces**. Cells already on disk are kept and reused; cells the cancelled run had not reached yet are reported by name so you can Run again to fill them in.
+* A **re-roll waits for the current run to finish**. Cells already on disk are kept and reused; cells missing from an incomplete earlier render are reported by name so you can Run again to fill them in.
 * The sheet is a fixed-canvas composite; the per-cell **clips** (with H3's audio) are the takes it was picked from.
 * Face blur needs the detector *and* its python packages; without either it says so and wires your original reference untouched.
 

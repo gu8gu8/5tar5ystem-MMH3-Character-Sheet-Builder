@@ -443,14 +443,15 @@ SECTIONS: tuple[HelpSection, ...] = (
             "with its own counter (`cell 2/5 · step 4/8 · 22-frame loop`). It opens the moment "
             "you queue and closes when the run ends, as the finished sheet takes over in "
             "**Results**.",
-            "**↻ new seed** on that strip re-rolls the cell you are looking at: it stops the run, "
-            "gives that one cell a new random seed, renders *only* that cell - the others keep "
-            "the frames already on disk - and puts the sheet back together from them.",
+            "**↻ new seed** on that strip queues a re-roll of the cell you are looking at: the "
+            "current run finishes first, then that one cell gets a new random seed and renders "
+            "*on its own* - the other cells keep their existing frames - before the sheet is "
+            "put back together.",
             "The same button is on every row of the **Results** tab, so a cell you only spotted "
             "later can be re-rolled without touching the rest of the sheet.",
-            "Cells the cancelled run had not reached yet are named in the status line "
-            "(`hero, side not rendered yet - Run again to fill them in`): a cell only reaches "
-            "the folder once it has finished.",
+            "Cells without a completed frame are named in the status line "
+            "(`hero, side not rendered yet - Run again to fill them in`), so an incomplete sheet "
+            "is explained rather than left with unexplained gaps.",
             "The clip is decoded on the CPU, never on the GPU the sampler is using, so it cannot "
             "slow a render or run it out of memory - which is why it is short on a very large "
             "cell (at most 24 frames, and a still when even a few frames would be expensive).",

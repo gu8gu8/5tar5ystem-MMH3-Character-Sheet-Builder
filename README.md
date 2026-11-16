@@ -797,9 +797,9 @@ Results. `Off` in the *panel preview* setting switches it off with the rest of t
 
 Next to it sits **`↻ new seed`**, the "this one is no good" button:
 
-* it cancels the running prompt (only when this node's render is the one running), waits for the queue
-  to drain, writes a random seed onto **that one cell** (`cells[i].seed`, which H3's own
-  `planner.cell_seed` already honours) and re-queues with `render.onlyCells: [thatCell]`;
+* it writes a random seed onto **that one cell** (`cells[i].seed`, which H3's own
+  `planner.cell_seed` already honours) and queues a re-render with `render.onlyCells: [thatCell]`;
+  if another render is running, it finishes first;
 * the node narrows that run to the one cell - the others keep the frames they already have on disk - and
   when it finishes the panel drops the scope and recomposes the sheet from the folder;
 * the same button is on every row of the **Results** tab, so a cell can be re-rolled after the sheet is
@@ -808,9 +808,8 @@ Next to it sits **`↻ new seed`**, the "this one is no good" button:
 Two things worth knowing about it, both honest limits of a one-cell re-render:
 
 * **A cell that never finished is not in the folder.** Nothing is lost that was rendered: cells already
-  on disk are reused, and the ones the cancelled run had not reached yet are named in the status line
-  (`hero, side not rendered yet - Run again to fill them in`), so the smaller sheet is explained rather
-  than mysterious.
+  on disk are reused, and any cells missing from an incomplete earlier render are named in the status
+  line (`hero, side not rendered yet - Run again to fill them in`).
 * **It queues through the node's own graph**, i.e. it presses the same Queue button you do. A panel
   running outside ComfyUI (the standalone tests) says so instead of pretending.
 

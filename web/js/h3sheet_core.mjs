@@ -598,7 +598,7 @@ export const LIVE_FPS_RANGE = [1, 30];
 //: What the strip's re-roll button does. A stream carries `whole_sheet` when its one clip IS the
 //: sheet (the draft pass): there is no cell to re-roll and the seed that decides it is the node's
 //: own, so the button is disabled and says what to do instead of failing on a cell id.
-export const LIVE_RETRY_TITLE = "Stop the run and render this cell again with a new seed";
+export const LIVE_RETRY_TITLE = "Queue this cell to render again with a new seed";
 export const LIVE_RETRY_WHOLE_SHEET_TITLE =
     "A draft pass renders the whole sheet in one clip - change the seed knob and queue again to re-roll it";
 
@@ -8098,7 +8098,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
         if (!cellId || typeof hooks.retryCell !== "function") return;
         liveRetry.disabled = true;
         const label = liveMeta.textContent;
-        liveMeta.textContent = `re-rolling ${cellId} with a new seed…`;
+        liveMeta.textContent = `queuing ${cellId} to re-render with a new seed…`;
         let result = null;
         try {
             result = await hooks.retryCell({ cellId, cell: Number(liveLast?.cell) || 0 });
@@ -8129,7 +8129,7 @@ export function buildSheetInterface({ state, hooks = {} }) {
             persist();
         }
         if (trigger) trigger.disabled = true;
-        notify(`re-rendering ${id} with a new seed…`);
+        notify(`queuing ${id} to re-render with a new seed…`);
         try {
             await hooks.retryCell({ cellId: id });
         } catch (error) {

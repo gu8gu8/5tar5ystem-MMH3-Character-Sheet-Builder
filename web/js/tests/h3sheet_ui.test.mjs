@@ -64,10 +64,14 @@ assert.ok(sheet.includes('from ..preview_stream import EVENT as PREVIEW_EVENT'),
 // things for that to mean "this cell, new seed, nothing else touched".
 assert.ok(wiring.includes("retryCell: ({ cellId }) => retryCellRender(node, cellId)"),
     "the panel's request must reach the wiring");
-assert.ok(/await api\.interrupt\?\.\(part\.promptId/.test(wiring),
-    "a re-roll cancels the run it is replacing (targeted at that prompt)");
-assert.ok(wiring.includes("waitForIdleQueue") && wiring.includes('api.fetchApi("/queue"'),
-    "and waits for the queue to drain, or the re-roll queues behind the run it cancelled");
+assert.ok(!wiring.includes("api.interrupt") && !wiring.includes("waitForIdleQueue"),
+    "a re-roll must leave the active run alone and use ComfyUI's queue");
+assert.ok(wiring.includes("const queued = await queueRun(node)"),
+    "the new-seed render is queued instead of replacing the active run");
+assert.ok(wiring.includes("part.retries.set(promptId"),
+    "the queued render is tracked by its prompt id");
+assert.ok(wiring.includes("part?.retries?.get(promptId)"),
+    "only that re-render's success triggers recomposition");
 assert.ok(/onlyCells: \[String\(cellId\)\]/.test(wiring),
     "the run is scoped to that one cell (render.onlyCells)");
 assert.ok(spec.includes("only_cells") && spec.includes("_apply_only_cells"),

@@ -187,43 +187,21 @@ async function queueRefmod(node, selection = []) {
     return api.queuePrompt(0, { workflow, output: refmodOutput });
 }
 
-/** Wait for ComfyUI's queue to drain, so a re-roll is not appended behind the run it cancelled. */
-async function waitForIdleQueue(attempts = 40, delayMs = 150) {
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
-        const empty = await api.fetchApi("/queue", { cache: "no-store" })
-            .then((response) => response.json())
-            .then((queue) => !(queue?.queue_running?.length || queue?.queue_pending?.length))
-            .catch(() => true);
-        if (empty) return true;
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-    return false;
-}
-
 /**
  * Re-render ONE cell with a new seed - the panel's "new seed" button.
  *
- * The flow, in order, and each step is why the next one is safe:
+ * The current prompt is never interrupted. The retry is queued normally, and its prompt id
+ * lets the completion handler distinguish it from the render that was already running.
  *
- * 1. cancel the running prompt (only if this node's render is the one running), and wait for the
- *    queue to drain - otherwise the re-roll would queue behind the run it just interrupted;
- * 2. write a random seed onto that cell and scope the run to it (`render.onlyCells`), which the
+ * 1. write a random seed onto that cell and scope the queued run to it (`render.onlyCells`), which the
  *    node narrows the sheet to, leaving every other cell's frames on disk untouched;
- * 3. queue, and remember what was re-rolled;
- * 4. when the run succeeds, drop the scope and recompose the sheet from the folder — the other
+ * 2. queue and remember what was re-rolled by prompt id;
+ * 3. when that queued run succeeds, drop the scope and recompose the sheet from the folder - the other
  *    cells come back from the frames they already had.
  */
 async function retryCellRender(node, cellId) {
     const part = node._mmxSheet;
     if (!part) return { queued: false };
-    if (part.running) {
-        try {
-            await api.interrupt?.(part.promptId || undefined);
-        } catch (error) {
-            /* an interrupt that fails is not fatal: the queue wait below still applies */
-        }
-        await waitForIdleQueue();
-    }
     const payload = currentPayload(node, part.state);
     const cells = Array.isArray(payload.cells) ? payload.cells : [];
     const index = cells.findIndex((cell) => String(cell?.id || "") === String(cellId));
@@ -233,8 +211,13 @@ async function retryCellRender(node, cellId) {
     payload.cells = cells;
     payload.render = { ...(payload.render || {}), onlyCells: [String(cellId)] };
     writePayload(node, payload);
-    part.retry = { cellId: String(cellId), seed };
-    await queueRun(node);
+    const queued = await queueRun(node);
+    const promptId = String(queued?.prompt_id || queued?.promptId || "");
+    if (!promptId) {
+        throw new Error("the queued re-render did not return a prompt id");
+    }
+    if (!(part.retries instanceof Map)) part.retries = new Map();
+    part.retries.set(promptId, { cellId: String(cellId), seed });
     return { queued: true, seed };
 }
 
@@ -419,7 +402,7 @@ function mountPanel(node) {
         compose: (board) => sheetAction(node, {
             action: "compose", board, spec: currentPayload(node, state),
         }),
-        // "This cell is no good": cancel the run and render that one cell again with a new seed.
+        // "This cell is no good": queue that one cell again with a new seed.
         retryCell: ({ cellId }) => retryCellRender(node, cellId),
         clearSheet: (board) => sheetAction(node, { action: "clear", board }),
         // The panel re-laid itself out. The node keeps the size the user gave it, so this is
@@ -566,11 +549,12 @@ function mountPanel(node) {
         };
         // A re-roll finishes by putting the sheet back together: this run rendered one cell, the
         // others were never touched, and the composite has to be rebuilt from the folder.
-        const onSuccess = async () => {
+        const onSuccess = async (event) => {
             const part = node._mmxSheet;
-            const retry = part?.retry;
+            const promptId = String(event?.detail?.prompt_id || "");
+            const retry = promptId ? part?.retries?.get(promptId) : null;
             if (!part || !retry) return;
-            part.retry = null;
+            part.retries.delete(promptId);
             try {
                 const payload = currentPayload(node, part.state);
                 if (payload.render && "onlyCells" in payload.render) {
@@ -584,9 +568,7 @@ function mountPanel(node) {
                     board: String(part.state?.suiteBoard || ""),
                 });
                 await part.panel?.refreshResults?.();
-                // Cells that never finished - the run this replaced was cancelled mid-cell, and a
-                // cell only reaches the folder once it is done - are named rather than left as an
-                // unexplained gap in the sheet.
+                // Incomplete earlier renders are named rather than left as unexplained gaps.
                 const missing = Array.isArray(result?.missing) ? result.missing : [];
                 part.hooks?.status?.(
                     `${retry.cellId} re-rendered with seed ${retry.seed} · sheet recomposed`
