@@ -7014,27 +7014,11 @@ export function buildSheetInterface({ state, hooks = {} }) {
     // -------------------------------------------------------------- cells
     function renderCells() {
         cellsHost.replaceChildren();
-        // B's stage belongs to this view: "what to draw" is answered by the sheet itself, so the
-        // sheet fills the top of the pane and the vocabulary that fills it scrolls underneath.
-        // (`.mmx-pane--fills` is what turns the pane into this two-row column; other tabs keep
-        // the plain scrolling pane.)
-        cellsHost.classList.add("mmx-pane--fills");
-        const scroll = element("div", { className: "mmx-pane__scroll" });
-        // B's line under the sheet: while a render runs it carries the live facts (which cell,
-        // which step, how long the loop is); when nothing is streaming it says what the picture
-        // is. It is the stage's own caption rather than a row of the filmstrip, so reading the
-        // stage never means looking somewhere else.
-        const caption = element("div", { className: "mmx-stage__caption" });
-        caption.dataset.mmStageCaption = "1";
-        const captionLive = element("span", { className: "mmx-stage__caption__live" });
-        const captionHint = element("span", {
-            className: "mmx-muted",
-            textContent: "the sheet appears here as it denoises",
-        });
-        caption.append(captionLive, captionHint);
-        cellsHost.append(sheetPreview(), caption, scroll);
-        // The caption survives a rebuild: a refresh while a render runs must not lose the facts.
-        syncStageCaption();
+        // The Cells tab is the cell builder/editor only. The sheet preview has no drop/edit role
+        // here, so it is intentionally omitted and the controls fill the pane as normal.
+        cellsHost.classList.remove("mmx-pane--fills");
+        const scroll = element("div");
+        cellsHost.append(scroll);
         const builder = element("div", { className: "mmx-card" });
         const planNote = element("div", { className: "mmx-muted" }, { marginTop: "2px" });
         const ticks = () => ({

@@ -38,6 +38,10 @@ ok.push("correct ComfyUI imports (app from app.js, api from api.js)");
 assert.ok(wiring.includes("panel.setRunning(true)"),
     "the panel must follow a running prompt so results fill in cell by cell");
 
+// The Cells tab is a builder/editor, not a duplicate sheet-preview grid.
+assert.ok(!core.match(/function renderCells\([\s\S]*?cellsHost\.append\(sheetPreview\(\)/),
+    "renderCells must not mount the cell preview grid");
+
 // --- the render's own live preview -------------------------------------------
 // The model wrapper streams a frame per step under its own event (preview_stream.py): the
 // wiring subscribes to it, tells two sheets apart, and lets it go with the node.
